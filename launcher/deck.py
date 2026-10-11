@@ -19,7 +19,7 @@ from . import chain, dsp_module, host, model, snapshot
 from .boot_deck import _monsock, window_display
 from .chain import nonempty, say, warn_banner
 from .layout import Layout
-from .rig import default_audiodev
+from .rig import DEFAULT_GROUP, default_audiodev
 
 # The panel key socket's UDP port, which the key scripts send to.
 PANEL_KEY_PORT = 40124
@@ -59,6 +59,14 @@ def dsp_env(lay, m, env):
     return knobs
 
 
+def link_group(env):
+    """The Pro DJ Link segment (ip:port) when DJLINK=1, else an empty string."""
+    if env.get("DJLINK") != "1":
+        return ""
+    ip, _, port = nonempty(env, "GROUP", DEFAULT_GROUP).rpartition(":")
+    return "%s:%d" % (ip, host.pick_udp_port(int(port)))
+
+
 def command(lay, m, env):
     """(argv, env) of the player's QEMU. The stick is a snapshot, so the
     firmware's writes to it never reach the image."""
@@ -88,6 +96,14 @@ def command(lay, m, env):
         # The same ring, prefill and latency cap (ms) as the NXS2's rig.
         env["CDJ_DSP_AUDIO"] = nonempty(env, "CDJ_DSP_AUDIO", "1:3000:150:450")
         argv += ["-audio", nonempty(env, "AUDIODEV", default_audiodev())]
+    group = link_group(env)
+    if group:
+        # QEMU's socket backend carries one frame per datagram; every deck on
+        # the group sees the others. The firmware reads its MAC from flash,
+        # which is empty here, so each deck on one segment needs its own.
+        argv += ["-netdev", "socket,id=djlink,mcast=" + group]
+        env["GROUP"] = group
+        env["CDJ_ETHER_MAC"] = nonempty(env, "CDJ_ETHER_MAC", "02:00:00:00:00:01")
     argv += shlex.split(env.get("MAIN_ARGS", ""))
     return argv, env
 
@@ -134,8 +150,8 @@ def start(m, env, dry):
         return 1
     argv, env = command(lay, m, env)
     reach = plan_snapshot(lay, m, argv, env)
-    say("%s: one window with the USB stick. Pro DJ Link, a second deck, MIDI controllers, mods and "
-        "the virtual deck app are CDJ-2000NXS2 features and are skipped." % m.title)
+    say("%s: one window with the USB stick. A second deck, MIDI controllers, mods and the virtual "
+        "deck app are CDJ-2000NXS2 features and are skipped." % m.title)
     if dry:
         knobs = ["CDJ_ATA", "CDJ_BF531_UPD", "CDJ_M16C_GUI", "CDJ_PANEL_KEYSOCK", "CDJ_DSP_AUDIO", "CDJ_C6747_IDLE",
                  "CDJ_C6727_IDLE", "C66X_IDLE_ISR_FAST", "C66X_JIT"]
@@ -144,6 +160,12 @@ def start(m, env, dry):
         return 0
     os.makedirs(lay.logs, exist_ok=True)
     say("the first boot takes a minute; close the window or press Ctrl-C to stop.")
+    dhcp = None
+    if env.get("DJLINK") == "1":
+        # The deck announces itself only once it holds a lease.
+        with open(os.path.join(lay.tmp, "cdj-%s-dhcpd.log" % m.id), "wb") as log:
+            dhcp = subprocess.Popen(host.python_argv() + [os.path.join(lay.scripts, "net", "dhcp_server.py"),
+                                                          env["GROUP"]], stdout=log, stderr=subprocess.STDOUT)
     qemu = subprocess.Popen(argv, env=env)
     driver = subprocess.Popen(reach, env=env) if reach else None
     try:
@@ -151,7 +173,8 @@ def start(m, env, dry):
     except KeyboardInterrupt:
         qemu.terminate()
         qemu.wait()
-    if driver:
-        driver.terminate()
+    for helper in (driver, dhcp):
+        if helper:
+            helper.terminate()
     say("stopped.")
     return 0

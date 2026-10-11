@@ -193,7 +193,7 @@ void sh7763_board_init(MachineState *machine, const CdjBoardDesc *desc,
      * base; its MDIO read routine needs one extra turnaround lead-in bit
      * (static trace only, not yet confirmed against a live MDIO read). */
     cdj_ether_init(sysmem, "sh7763.ether", 0xFEF00000,
-                  cdj_count_irq(irq[S63_GETHER0], "GETHER0"), 1);
+                  cdj_count_irq(irq[S63_GETHER0], "GETHER0"), 1, true);
     cdj2000_sdhi_init(sysmem);
     if (auth_chip) {
         cdj2000_iic_init(sysmem, nxs_auth_answers,

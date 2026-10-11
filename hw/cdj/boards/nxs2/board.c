@@ -212,7 +212,7 @@ static void cdj2000nxs2_init(MachineState *machine)
     /* HPB window: physical area 1 (0x04000000-0x07FFFFFF) is the on-chip
      * peripheral bus. EtherMAC is modelled; the rest of 0x04C00000 is logged. */
     cdj_ether_init(sysmem, "sh7724.ether", 0x04600000,
-                  cdj_count_irq(cdj_intc.irqs[CDJ_ETHI], "EtherMAC ETHI"), 0);
+                  cdj_count_irq(cdj_intc.irqs[CDJ_ETHI], "EtherMAC ETHI"), 0, false);
     cdj_unimp("sh7724.hpb",   0x04C00000, 0x100000);
     cdj_hpb_probe_init(sysmem);   /* logging/ready-probe for the 0x04CE0000 chip */
     if (!getenv("CDJ_USB_STUB")) {

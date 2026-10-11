@@ -282,6 +282,7 @@ def _start_deck(lay, player, c, dry):
         for k in ("QEMU_BUILD", "QEMU_EB_BUILD"):
             if c[k]:
                 env[k] = c[k]
+    env.update(DJLINK=c["CDJ_DJLINK"], GROUP=c["CDJ_GROUP"])
     if c["CDJ_AUDIO"] != "1":
         env["NOSOUND"] = "1"
     if not _offer_rebuild(lay, env, dry):

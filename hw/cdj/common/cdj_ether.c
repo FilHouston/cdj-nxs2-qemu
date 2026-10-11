@@ -135,6 +135,7 @@ typedef struct {
     unsigned out_bits;
     unsigned mdio_ta;                /* this board's read turnaround, see
                                        * cdj_ether_mdio_ta()                */
+    bool lmon_low;                   /* PSR.LMON reads 0 with a link */
     unsigned wr_reg;                 /* register a write frame is aimed at */
     unsigned wr_phyad;               /* ...and the PHY address it named */
     bool wr_pending;
@@ -798,10 +799,11 @@ static uint64_t cdj_ether_read(void *opaque, hwaddr off, unsigned size)
     if (off == CDJ_ETHER_PIR) {
         v = (v & ~(uint32_t)CDJ_PIR_MDI) | (s->mdi ? CDJ_PIR_MDI : 0);
     }
-    /* PSR is the link-status pin. The firmware logs "ETHER linkdown" and
-     * refuses to send while it reads 0. */
+    /* PSR is the link-status pin. The NXS2's firmware logs "ETHER linkdown"
+     * and refuses to send while it reads 0; the SH7763 boards' send routine
+     * does the opposite and fails while bit 0 is set. */
     if (off == CDJ_ETHER_PSR) {
-        v = getenv("CDJ_ETHER_NOLINK") ? 0 : CDJ_PSR_LMON;
+        v = (getenv("CDJ_ETHER_NOLINK") != NULL) == s->lmon_low ? CDJ_PSR_LMON : 0;
     }
     cdj_ether_trace(s, off, v, false);
     return v;
@@ -982,13 +984,14 @@ static const VMStateDescription vmstate_cdj_ether = {
  *
  * Without it the link comes up but frames go nowhere. */
 void cdj_ether_init(MemoryRegion *sysmem, const char *name, hwaddr base,
-                    qemu_irq irq, unsigned mdio_ta_default)
+                    qemu_irq irq, unsigned mdio_ta_default, bool lmon_low)
 {
     CdjEtherState *s = g_new0(CdjEtherState, 1);
     const char *id = getenv("CDJ_ETHER_NETDEV");
     NetClientState *peer;
 
     s->mdio_ta = mdio_ta_default;
+    s->lmon_low = lmon_low;
     memory_region_init_io(&s->iomem, NULL, &cdj_ether_ops, s, name,
                           CDJ_ETHER_SIZE);
     memory_region_add_subregion_overlap(sysmem, base, &s->iomem, 1);
