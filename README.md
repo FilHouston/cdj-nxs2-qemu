@@ -13,7 +13,7 @@ Pioneer DJ players on your computer, from the CDJ-2000 to the NXS2 and XDJ famil
 
 [Supported players](#supported-players) · [Quick start](#quick-start) · [Keyboard](#keyboard) · [Virtual deck](#virtual-deck) · [Mods](#mods) · [How it works](#how-it-works)
 
-<a href="docs/img/deck-showcase.png"><img src="docs/img/deck-showcase.png" alt="Real emulator screens for six players: supported CDJ-2000NXS2, and experimental XDJ-700, XDJ-1000, CDJ-900NXS, CDJ-2000NXS and CDJ-2000. Older decks run below real time and their sound is chopped." width="960"></a>
+<a href="docs/img/deck-showcase.png"><img src="docs/img/deck-showcase.png" alt="Real emulator screens for six players: supported CDJ-2000NXS2, and experimental XDJ-700, XDJ-1000, CDJ-900NXS, CDJ-2000NXS and CDJ-2000. Except the CDJ-900, the older decks play in real time with the DSP module setup builds." width="960"></a>
 
 <sub>Actual emulator captures from development builds. Select the image for a closer look.</sub>
 
@@ -83,10 +83,10 @@ show the firmware interface, not a claim of feature parity.
 | player | status | what works |
 |---|---|---|
 | **CDJ-2000NXS2** | ✅ Fully supported | Plays tracks from USB in real time with sound. Pro DJ Link, MIDI controllers and [mods](#mods). |
-| **XDJ-1000MK2** | 🧪 Experimental | Loads and plays from USB, below real time (chopped sound). PLAY, CUE and touch work. |
-| **XDJ-700** | 🧪 Experimental | Loads and plays from USB, below real time (chopped sound). Touch works. |
+| **XDJ-1000MK2** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. PLAY, CUE and touch work. |
+| **XDJ-700** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. Touch works. |
 | **XDJ-1000** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. PLAY, CUE, tempo, jog and touch work. |
-| **CDJ-900NXS** | 🧪 Experimental | Loads and plays from USB, below real time (chopped sound). |
+| **CDJ-900NXS** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. |
 | **CDJ-2000NXS** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. PLAY, CUE, tempo and jog work. |
 | **CDJ-900** | 🧪 Experimental | Loads and plays from USB; its display shows the overview, playhead and time. |
 | **CDJ-2000** | 🧪 Experimental | Loads and plays from USB in real time with the DSP module setup builds. PLAY, CUE, tempo and jog work. |
@@ -102,40 +102,40 @@ show the firmware interface, not a claim of feature parity.
 | **Media** | | | | | | | | |
 | USB | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Playback** | | | | | | | | |
-| Sound | ✅ | ⚠️<sup>1</sup> | ⚠️<sup>1</sup> | ✅ | ⚠️<sup>1</sup> | ✅ | ❌ | ✅ |
-| Real time with the setup DSP module | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | · | ✅ |
+| Sound | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Real time with the setup DSP module | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
 | **Display** | | | | | | | | |
 | Waveform / overview | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tempo and BPM readout | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Transport** | | | | | | | | |
-| PLAY / pause | ✅ | ✅ | ⚠️<sup>2</sup> | ✅ | ⚠️<sup>2</sup> | ✅ | ✅ | ✅ |
+| PLAY / pause | ✅ | ✅ | ⚠️<sup>1</sup> | ✅ | ⚠️<sup>1</sup> | ✅ | ✅ | ✅ |
 | CUE | ✅ | ✅ | · | ✅ | · | ✅ | · | ✅ |
 | **Tempo** | | | | | | | | |
 | Tempo fader | ✅ | · | · | ✅ | · | ✅ | · | ✅ |
-| MASTER TEMPO | ⚠️<sup>3</sup> | · | · | · | · | · | · | · |
+| MASTER TEMPO | ⚠️<sup>2</sup> | · | · | · | · | · | · | · |
 | **Jog** | | | | | | | | |
 | Pitch bend | ✅ | · | · | ✅ | · | ✅ | · | ✅ |
-| Vinyl / scratch | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
+| Vinyl / scratch | ⚠️<sup>3</sup> | · | · | · | · | · | · | · |
 | Needle search | ✅ | · | · | · | ➖ | · | ➖ | · |
 | **Performance** | | | | | | | | |
 | Hot cues | ✅ | · | · | · | ➖ | · | ➖ | · |
-| Loops | ⚠️<sup>5</sup> | · | · | · | · | · | · | · |
+| Loops | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
 | Beat jump | · | · | · | · | ➖ | ➖ | ➖ | ➖ |
-| Slip | ⚠️<sup>6</sup> | · | · | · | · | · | · | ➖ |
+| Slip | ⚠️<sup>5</sup> | · | · | · | · | · | · | ➖ |
 | **Interface** | | | | | | | | |
 | Touch screen | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ |
 | **Pro DJ Link** | | | | | | | | |
-| Link with other players | ✅ | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> |
+| Link with other players | ✅ | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ⚠️<sup>7</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> |
 
 Firmware: CDJ-2000NXS2 1.87, XDJ-1000MK2 1.45, XDJ-700 1.15, XDJ-1000 1.13, CDJ-900NXS 1.31, CDJ-2000NXS 1.44, CDJ-900 4.32, CDJ-2000 4.33.
 
-1. Below real time, so the sound is chopped.
-2. Only one run so far.
-3. Sound can drop out after switching it on.
-4. VINYL scratching not tested yet.
-5. Loops engage in only some runs.
-6. The slipped playback is not checked yet.
-7. Only one deck can be started so far.
+1. Only one run so far.
+2. Sound can drop out after switching it on.
+3. VINYL scratching not tested yet.
+4. Loops engage in only some runs.
+5. The slipped playback is not checked yet.
+6. Only one deck can be started so far.
+7. Announces itself; browsing not checked yet.
 
 </details>
 <!-- feature-matrix:end -->
@@ -297,7 +297,8 @@ Setup stores the player in `cdj.conf`, so `./start.sh` alone starts it from
 then on. An older player gets the build, firmware and USB steps and opens one
 window with your stick; a second deck, Pro DJ Link, MIDI controllers, mods and
 the virtual deck app are CDJ-2000NXS2 features and are skipped. The CDJ-2000,
-CDJ-2000NXS and XDJ-1000 also get the DSP module step. Which players exist is
+CDJ-2000NXS, XDJ-1000, XDJ-1000MK2, XDJ-700 and CDJ-900NXS also get the DSP
+module step. Which players exist is
 whatever has a profile in `models/`.
 
 Not every key is mapped on the older players yet. On the XDJ-700, XDJ-1000 and

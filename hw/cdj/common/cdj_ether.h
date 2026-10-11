@@ -12,11 +12,13 @@
  * Maps the EtherMAC at base (MemoryRegion name = name) and attaches irq.
  * mdio_ta_default is this board's read-turnaround lead-in (see
  * cdj_ether_mdio_ta() in cdj_ether.c): 0 for the NXS2, 1 for the SH7763
- * boards. CDJ_ETHER_MDIO_TA still overrides either. The MAC address
+ * boards. CDJ_ETHER_MDIO_TA still overrides either. lmon_low is the polarity
+ * of PSR.LMON: the SH7763 boards' firmware reads 0 as link up, the NXS2's
+ * reads 1. The MAC address
  * override, netdev id and other debug knobs are environment variables
  * (CDJ_ETHER_*), so nothing else is board-specific.
  */
 void cdj_ether_init(MemoryRegion *sysmem, const char *name, hwaddr base,
-                    qemu_irq irq, unsigned mdio_ta_default);
+                    qemu_irq irq, unsigned mdio_ta_default, bool lmon_low);
 
 #endif

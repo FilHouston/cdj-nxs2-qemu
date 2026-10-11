@@ -251,7 +251,7 @@ static void sh7724_deck_init(MachineState *machine, const Sh7724Deck *deck)
 
     cdj_ata_init(sysmem, "sh7724.atapi", A7ADDR(0xA4DA2100), NULL);
     cdj_ether_init(sysmem, "sh7724.ether", 0x04600000,
-                   cdj_count_irq(cdj_intc.irqs[CDJ_ETHI], "EtherMAC ETHI"), 0);
+                   cdj_count_irq(cdj_intc.irqs[CDJ_ETHI], "EtherMAC ETHI"), 0, false);
 
     cdj_tmu_init(sysmem, 0x1FD80000,
                  cdj_count_irq(cdj_intc.irqs[CDJ_TMU0_TUNI0], "TMU0 TUNI0"),

@@ -120,7 +120,8 @@ def test_extract_dir_is_the_layout_extract_for_the_default_model():
 
 
 def test_dsp_module_models_name_their_idle_loop():
-    for mid, head in (("cdj2000nxs", "0xC004CB8C"), ("xdj1000", "0xC004CD0C")):
+    for mid, head in (("cdj2000nxs", "0xC004CB8C"), ("xdj1000", "0xC004CD0C"), ("xdj700", "0xC004C8CC"),
+                      ("cdj900nxs", "0xC004CD0C"), ("xdj1000mk2", "0xC004EDCC")):
         m = model.load(mid)
         assert m.has_dsp_module
         assert m.dsp_idle == head + ":0x11804AE0:0x11805C00"
@@ -132,6 +133,6 @@ def test_dsp_module_models_name_their_idle_loop():
     assert c2k.dsp_idle == "0x80047B80:0x10005000:0x10006600"
     assert c2k.dsp_idle_knob == "CDJ_C6727_IDLE"
     assert c2k.module_dir == "curated-cdj2000"
-    for mid in ("cdj2000nxs2", "xdj700"):
+    for mid in ("cdj2000nxs2", "cdj900"):
         assert not model.load(mid).has_dsp_module
     assert model.load().module_dir == "curated"
