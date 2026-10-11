@@ -34,7 +34,15 @@ def default_audiodev():
         # total as for pa, so pa's 200000 would queue 800 ms; 8 x 23 ms is
         # about pa's 200 ms in all.
         return "coreaudio,out.buffer-length=23220,out.buffer-count=8,timer-period=5000"
-    return "pa,server=unix:/mnt/wslg/PulseServer,out.buffer-length=200000,timer-period=5000"
+    # WSLg's PulseAudio socket, but only when this really is a WSL guest that
+    # has one: passing that path on an ordinary Linux host makes
+    # pa_context_connect() fail ("Connection refused") and the deck comes up
+    # with no audio backend at all. Elsewhere libpulse finds the session's own
+    # server by itself (PULSE_SERVER, or $XDG_RUNTIME_DIR/pulse/native).
+    wslg = "/mnt/wslg/PulseServer"
+    if os.path.exists(wslg):
+        return "pa,server=unix:%s,out.buffer-length=200000,timer-period=5000" % wslg
+    return "pa,out.buffer-length=200000,timer-period=5000"
 
 
 def jit_module(env, m):
