@@ -173,20 +173,20 @@ int main(void)
     run(c);
     expect("BYTEOP2P (TL)", c, 4, 0x001D000C);
 
-    /* R4 = BYTEOP3P (R1:0, R3:2) (LO / HI): signed halves plus bytes, clamped to 0..255 */
+    /* R4 = BYTEOP3P (R1:0, R3:2) (LO / HI): signed halves plus the bytes of R3, clamped to 0..255 */
     insn(c, alu0(23, 0, 0), alu1(0, 0, 4, 0, 0, 2));
     set_r(c, 0, 0x00FF0010);
-    set_r(c, 2, 0x01020304);
+    set_r(c, 3, 0x01020304);
     run(c);
     expect("BYTEOP3P (LO)", c, 4, 0x00FF0013);
     insn(c, alu0(23, 1, 0), alu1(0, 0, 4, 0, 0, 2));
     set_r(c, 0, 0x00FF0010);
-    set_r(c, 2, 0x01020304);
+    set_r(c, 3, 0x01020304);
     run(c);
     expect("BYTEOP3P (HI)", c, 4, 0xFF001400);
     insn(c, alu0(23, 0, 0), alu1(0, 0, 4, 0, 0, 2));
     set_r(c, 0, 0x0000FFF0);
-    set_r(c, 2, 0x00000300);
+    set_r(c, 3, 0x00000300);
     run(c);
     expect("BYTEOP3P clamps at 0", c, 4, 0x00000000);
 

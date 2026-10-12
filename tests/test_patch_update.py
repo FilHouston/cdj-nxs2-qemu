@@ -18,6 +18,8 @@ import gui_decode
 import gui_encode
 import lzss_decode
 import lzss_encode
+import main_decode
+import main_encode
 import patch_gui
 import patch_main
 import patch_update
@@ -87,6 +89,19 @@ def test_gui_encode_output_bounds_gui_decode_input():
     section = gui_encode.encode(header, b"x" * 5000)
     declared = struct.unpack_from(">I", section, 0x20)[0]
     assert len(section) == 0x24 + declared + 2
+
+
+def test_main_encode_keeps_the_s0_header_record():
+    label = b"CDJ-2000NXS2MAINVer1.87        0"
+    srecs = [b"S00E0000726F6D6F626A20206D6F74D8",
+             main_encode._srecord(0, b"ipl-bytes"),
+             main_encode._srecord(main_decode.MAIN_IMG_OFF, b"old image"),
+             b"S70500000000FA"]
+    section = label + b"\r\n".join(srecs) + b"\r\n" + b"\x00\x00"
+    out = main_encode.encode(section, b"new image" * 10)
+    lines = out[32:-2].split(b"\r\n")
+    assert lines[:2] == srecs[:2]
+    assert lines[-2] == srecs[3]
 
 
 # -- sigpatch.py: the shared engine, on a made-up (non-GUI) profile --------------
@@ -420,6 +435,16 @@ def test_real_upd_repacks_byte_identical_with_no_mods(tmp_path):
     r = run_script("mods/patch_update.py", REAL_UPD, out)
     assert r.returncode == 0, r.stderr
     assert out.read_bytes() == data
+
+
+def test_repack_keeps_the_bytes_after_the_last_section(tmp_path):
+    upd = build_upd(gui_section(), b"driv-section", b"main-section", b"panl-section") + b"TOUR1TABLET" * 50
+    src = tmp_path / "in.UPD"
+    src.write_bytes(upd)
+    out = tmp_path / "out.UPD"
+    r = run_script("mods/patch_update.py", src, out)
+    assert r.returncode == 0, r.stderr
+    assert out.read_bytes() == upd
 
 
 @needs_real_upd

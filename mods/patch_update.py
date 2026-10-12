@@ -177,6 +177,7 @@ def main():
     for size in sizes:
         sections.append(data[off:off + size])
         off += size
+    trailer = data[off:]
 
     for target, target_names in by_target.items():
         decode, encode, mod = TARGETS[target]
@@ -203,8 +204,8 @@ def main():
 
     manifest = b''.join(b'%d\r\n' % len(s) for s in sections)
     with open(out_path, 'wb') as f:
-        f.write(manifest + b''.join(sections))
-    print('patch_update: wrote %s (%d bytes)' % (out_path, hdrlen + sum(len(s) for s in sections)))
+        f.write(manifest + b''.join(sections) + trailer)
+    print('patch_update: wrote %s (%d bytes)' % (out_path, hdrlen + sum(len(s) for s in sections) + len(trailer)))
     print('patch_update: UNTESTED ON REAL HARDWARE -- flash at your own risk')
 
 

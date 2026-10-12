@@ -367,3 +367,19 @@ void edma_write(c6655_soc *s, uint32_t off, uint32_t val, unsigned size)
         soc_log_unimp(s, "EDMA3", 0x02740000 + off, 1, val);
     }
 }
+
+void edma_dump(c6655_soc *s)
+{
+    soc_edma *e = &s->edma;
+    uint64_t pend = e->ipr & e->ier;
+
+    soc_log(s, "irqdump: EDMA3 ER %016llx EER %016llx SER %016llx EMR %016llx",
+            (unsigned long long)e->er, (unsigned long long)e->eer,
+            (unsigned long long)e->ser, (unsigned long long)e->emr);
+    soc_log(s, "irqdump: EDMA3 event input levels ch30 %u ch31 %u (SPI XEVT, REVT)",
+            e->level[30], e->level[31]);
+    for (unsigned r = 0; r < 4; r++)
+        soc_log(s, "irqdump: EDMA3 region %u DRAE %016llx, IPR&IER&DRAE %016llx, IPR&DRAE %016llx",
+                r, (unsigned long long)drae(e, r), (unsigned long long)(pend & drae(e, r)),
+                (unsigned long long)(e->ipr & drae(e, r)));
+}

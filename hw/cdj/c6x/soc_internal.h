@@ -137,6 +137,7 @@ typedef struct soc_spi {
 } soc_spi;
 
 void     spi_reset(c6655_soc *s, soc_spi *p);
+void     spi_dump(c6655_soc *s);
 uint32_t spi_read(c6655_soc *s, uint32_t off, unsigned size);
 void     spi_write(c6655_soc *s, uint32_t off, uint32_t val, unsigned size);
 void     spi_fire(c6655_soc *s);
@@ -177,6 +178,7 @@ typedef struct soc_edma {
 
 void     edma_reset(soc_edma *e);
 void     edma_event(c6655_soc *s, unsigned ch, int level);
+void     edma_dump(c6655_soc *s);
 uint32_t edma_read(c6655_soc *s, uint32_t off, unsigned size);
 void     edma_write(c6655_soc *s, uint32_t off, uint32_t val, unsigned size);
 
@@ -196,6 +198,9 @@ typedef struct soc_ram_region {
 
 struct c6655_soc {
     c6655_soc_config cfg;
+    /* The core's cycle counter and clock at the start of the step being run,
+     * so register writes can be dated inside it (mhz 0: not in a step). */
+    uint64_t step_cycle0, step_mhz;
     uint64_t now_ns;
 
     uint8_t  sig_level[SIG_COUNT];
@@ -221,5 +226,9 @@ struct c6655_soc {
     uint32_t logged[512];                 /* addresses already reported */
     unsigned nlogged;
 };
+
+/* Time of a register access: now_ns plus the cycles the core has run in the
+ * current step. */
+uint64_t soc_access_ns(const c6655_soc *s);
 
 #endif

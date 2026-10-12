@@ -98,7 +98,7 @@ static void start_word(c6655_soc *s, uint16_t data)
     p->txfull = 1;
     p->flg &= ~FLG_TXINT;
     if ((p->gcr1 & GCR1_ENABLE) && (p->gcr1 & GCR1_MASTER) && p->done_ns == UINT64_MAX)
-        p->done_ns = s->now_ns + word_ns(s);
+        p->done_ns = soc_access_ns(s) + word_ns(s);
     else if (!(p->gcr1 & GCR1_MASTER))
         soc_log(s, "SPI: slave mode is not modelled");
     spi_outputs(s);
@@ -183,4 +183,15 @@ void spi_write(c6655_soc *s, uint32_t off, uint32_t val, unsigned size)
         return;
     }
     spi_outputs(s);
+}
+
+void spi_dump(c6655_soc *s)
+{
+    soc_spi *p = &s->spi;
+
+    soc_log(s, "irqdump: SPI gcr0 %x gcr1 %08x int0 %08x flg %08x txfull %d rxempty %d "
+            "word due in %lld ns (UINT64_MAX = none), XEVT %u REVT %u",
+            p->gcr0, p->gcr1, p->int0, p->flg, p->txfull, p->rxempty,
+            p->done_ns == UINT64_MAX ? -1LL : (long long)(p->done_ns - s->now_ns),
+            s->sig_level[SIG_SPIXEVT], s->sig_level[SIG_SPIREVT]);
 }

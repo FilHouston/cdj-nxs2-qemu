@@ -75,6 +75,10 @@ c66x_bus c6655_soc_bus(c6655_soc *s);
  * (UINT64_MAX if none), so a caller can bound its CPU quantum. */
 void     c6655_soc_advance(c6655_soc *s, uint64_t ns);
 uint64_t c6655_soc_now_ns(const c6655_soc *s);
+/* The core is about to run a step at `mhz` cycles per microsecond. Until the
+ * next advance(), a register write that starts timed work is dated by the
+ * core's cycle counter instead of the step's start. */
+void     c6655_soc_step_begin(c6655_soc *s, uint64_t mhz);
 uint64_t c6655_soc_next_event_ns(const c6655_soc *s);
 /* The earliest event that can raise a CPU interrupt (<= UINT64_MAX). A core
  * idling in a busy loop may advance() straight to it: McBSP word events that
@@ -84,6 +88,8 @@ uint64_t c6655_soc_next_irq_ns(const c6655_soc *s);
 /* Diagnostics: advance calls, fast-path returns, event-loop passes,
  * next-event recomputations, McBSP words clocked, catch-up runs. */
 void     c6655_soc_debug_stats(const c6655_soc *s, uint64_t out[6]);
+/* Logs the interrupt routing state: INTC events, INTMUX, CIC0 and EDMA3. */
+void     c6655_soc_dump_irq(c6655_soc *s);
 
 /* uPP channel A receive: what the FPGA forwards from MAIN's CS6 ships. Bytes
  * fill the open (and one pending) DMA window; whatever arrives with no window

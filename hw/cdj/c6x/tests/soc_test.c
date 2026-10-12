@@ -29,6 +29,12 @@ void c66x_set_irq(c66x_core *c, int line, int level)
     irq_level[line] = level;
 }
 
+static uint64_t core_cycle;
+uint64_t c66x_get_cycle(const c66x_core *c)
+{
+    return core_cycle;
+}
+
 #define L2_BASE 0x00800000u
 #define L2_SIZE 0x00100000u
 #define DDR_BASE 0x80000000u
@@ -116,6 +122,7 @@ static void fresh(void)
     memset(setclr_mask, 0, sizeof setclr_mask);
     spi_words = 0;
     spi_peer = NULL;
+    core_cycle = 0;
     c6655_soc_config cfg = {
         .core = (c66x_core *)1,
         .mem = { NULL, mem_read, mem_write },
@@ -460,6 +467,38 @@ static void test_spi_edma_repeated_exchanges(void)
     }
 }
 
+/* The INT9 ISR starts the next exchange (0x00803A84..0x00803B84) before it
+ * clears IPR bit 31 (0x00803BA4). The core runs a whole step before the SoC is
+ * advanced, so an exchange kicked a few cycles before the step's end must not
+ * complete there: the ICR, the epilogue's ICR of IFR9 and INT6's status
+ * write-back would wipe the only completion and nothing would raise INT9 again. */
+static void test_spi_exchange_kicked_late_in_step(void)
+{
+    uint32_t txbuf = 0x00887000, rxbuf = 0x00888000, n = 9;
+    uint64_t step_ns = 1000000, mhz = 250;
+    test_spi_edma_link();
+    unsigned words = spi_words, pulses;
+    isr_enter(27, 26);
+    c6655_soc_step_begin(S, mhz);
+    core_cycle += step_ns * mhz / 1000 - 30;    /* SPIINT0 is written 30 cycles before the step ends */
+    w32(0x20BF0008, 0);
+    app_spi_params(txbuf, rxbuf, n);
+    w32(0x02742430, 0xC0000000);
+    w32(0x02742460, 1u << 31);
+    w32(0x20BF0008, 0x10300);
+    core_cycle += 30;
+    c6655_soc_advance(S, step_ns);
+    CHECK(spi_words == words, "no word done inside the ISR tail: %u", spi_words - words);
+    w32(0x02742470, 1u << 31);
+    isr_leave(27);
+    isr_enter(24, 25);                          /* INT6: its status clear takes bit 26 along */
+    isr_leave(24);
+    pulses = irq_pulses[9];
+    c6655_soc_advance(S, 10 * 1000000ull);
+    CHECK(spi_words == words + n, "exchange completes: %u", spi_words - words);
+    CHECK(irq_pulses[9] == pulses + 1, "INT9 raised for it: %u", irq_pulses[9] - pulses);
+}
+
 static void mcbsp_pingpong_setup(void)
 {
     fresh();
@@ -650,6 +689,7 @@ int main(void)
     test_upp_app_isr();
     test_spi_edma_link();
     test_spi_edma_repeated_exchanges();
+    test_spi_exchange_kicked_late_in_step();
     test_mcbsp_pingpong();
     test_edma_status_relatches();
     test_mcbsp_batch_is_exact();

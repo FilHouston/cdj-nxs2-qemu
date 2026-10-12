@@ -95,8 +95,8 @@ class Text:
 
 
 def _pad(letter, y, color):
-    return Key(f"hot_cue_{letter}", "pad", None, box=(37, y, 104, y + 36),
-               color=color)
+    return Key(f"hot_cue_{letter}", "pad", f"hot_cue_{letter}",
+               box=(37, y, 104, y + 36), color=color)
 
 
 KEYS = [
@@ -110,7 +110,7 @@ KEYS = [
         lamp="usb_indicator"),
     _pad("a", 316, RED), _pad("b", 390, CYAN), _pad("c", 464, YELLOW),
     _pad("d", 540, BLUE),
-    # BANK and the hot cue CALL/DELETE: no report bits are known for them.
+    # BANK and CALL/DELETE: no report bits are known for them.
     Key("bank_rev", "ring", None, circle=(30, 634, 11), dot=BLUE),
     Key("hot_cue_call", "rect", None, box=(60, 623, 80, 645)),
     Key("bank_fwd", "ring", None, circle=(110, 634, 11), dot=BLUE),
