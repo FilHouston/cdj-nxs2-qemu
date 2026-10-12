@@ -76,9 +76,9 @@ def test_raw_key_on_a_named_bit_inherits_its_status():
 
 
 def test_raw_key_on_an_unnamed_bit_is_a_guess():
-    a = ca.resolve("KEY_0x1A_0x01")
-    assert (a.off, a.mask, a.status) == (0x1A, 0x01, ca.GUESS)
-    assert a.datagram() == "0x1a:1:150:or"
+    a = ca.resolve("KEY_0x1A_0x10")
+    assert (a.off, a.mask, a.status) == (0x1A, 0x10, ca.GUESS)
+    assert a.datagram() == "0x1a:16:150:or"
 
 
 def test_raw_prefix_is_accepted_like_key():
@@ -123,7 +123,7 @@ def test_unknown_names_raise_with_the_raw_forms_named(name):
 
 def test_named_bit_ignores_aliases_and_non_key_actions():
     assert ca.named_bit(0x11, 0x01).name == "rotary_push"
-    assert ca.named_bit(0x1A, 0x01) is None
+    assert ca.named_bit(0x1A, 0x10) is None
 
 
 def test_raw_action_is_always_a_guess():

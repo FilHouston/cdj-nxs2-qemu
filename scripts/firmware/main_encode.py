@@ -41,7 +41,7 @@ def _srecord(addr, data):
 
 def encode(section, image):
     """section: the original MAIN section this update carried (its prefix
-    S-records and S7 terminator are reused verbatim). image: the
+    S0 header, S-records and S7 terminator are reused verbatim). image: the
     (possibly patched) flat bytes patch_main.py works on. Returns the new
     section, ready to take the original's place in a .UPD."""
     label = section[:LABEL_SIZE]
@@ -51,8 +51,10 @@ def encode(section, image):
     if term is None:
         raise SystemExit('main_encode: no S7 termination record in the section')
 
+    header = [line for line in body.split(b'\r\n') if line[:2] == b'S0']
+
     packed = encode_image(image)
-    lines = list(prefix)
+    lines = header + prefix
     for off in range(0, len(packed), RECORD_LEN):
         chunk = packed[off:off + RECORD_LEN]
         if len(chunk) < RECORD_LEN:

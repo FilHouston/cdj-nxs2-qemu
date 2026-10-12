@@ -346,6 +346,42 @@ static void cdj_c6x_watch_store(c66x_core *core, void *opaque, uint32_t addr,
     }
 }
 
+/*
+ * CDJ_C6X_IRQDUMP=1: once INT9 has gone 200 ms of virtual time without a new
+ * edge after it was running (>= 2000 edges), log why it is not coming: the
+ * core's interrupt registers and the SoC's routing state, one time only.
+ */
+static void cdj_c6x_irq_watch(CdjC6x *c, int64_t virt)
+{
+    c66x_stats st;
+    uint32_t csr, ifr;
+
+    if (!c->irq_watch || c->irq_dumped || !c->core || !c->soc) {
+        return;
+    }
+    c66x_get_stats(c->core, &st);
+    if (st.irq_edges[9] != c->irq9_edges) {
+        c->irq9_edges = st.irq_edges[9];
+        c->irq9_at_ns = virt;
+        return;
+    }
+    if (c->irq9_edges < 2000 || virt - c->irq9_at_ns < 200 * SCALE_MS) {
+        return;
+    }
+    c->irq_dumped = true;
+    csr = c66x_get_creg(c->core, 1);
+    ifr = c66x_get_creg(c->core, 2);
+    info_report("c6x irqdump at virt %.3f s: INT9 edges stuck at %u since %.3f s; "
+                "INT6 edges %u, interrupts taken %" PRIu64 ", core stop %d, exec pc 0x%08x",
+                virt / 1e9, c->irq9_edges, c->irq9_at_ns / 1e9, st.irq_edges[6],
+                st.interrupts, (int)c->last_stop, c66x_get_exec_pc(c->core));
+    info_report("c6x irqdump: CSR %08x (GIE %u PGIE %u) IER %08x IFR %08x (IFR bit9 %u) "
+                "ISTP %08x IRP %08x NRP %08x",
+                csr, csr & 1, (csr >> 1) & 1, c66x_get_creg(c->core, 4), ifr, (ifr >> 9) & 1,
+                c66x_get_creg(c->core, 5), c66x_get_creg(c->core, 6), c66x_get_creg(c->core, 7));
+    c6655_soc_dump_irq(c->soc);
+}
+
 static void cdj_c6x_diag_arm(CdjC6x *c)
 {
     const char *e = getenv("CDJ_C6X_PCHITS");
@@ -396,6 +432,7 @@ static void cdj_c6x_diag_arm(CdjC6x *c)
         c->sample_max = max;
         c->sample_after_ms = after;
     }
+    c->irq_watch = getenv("CDJ_C6X_IRQDUMP") != NULL;
     e = getenv("CDJ_C6X_WATCH");
     c->watch_after_ms = 0;
     if (e && sscanf(e, "%lx:%lx:%" SCNd64, &lo, &hi, &c->watch_after_ms) >= 2) {
@@ -1518,6 +1555,7 @@ static void cdj_c6x_run_to(uint64_t target)
         if (c->jitter && budget > 1) {
             budget = g_rand_int_range(c->jitter, 1, (gint32)MIN(budget, 1u << 30) + 1);
         }
+        c6655_soc_step_begin(c->soc, c->mhz);
         if (c->prof) {
             int64_t p0 = get_clock();
 
@@ -1616,6 +1654,7 @@ static void cdj_c6x_tick(void *opaque)
     CdjC6x *c = &cdj_c6x;
     int64_t virt = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
+    cdj_c6x_irq_watch(c, virt);
     if (c->sync && c->slack_ns) {
         int64_t w0 = get_clock();
         uint64_t now = virt > c->epoch_ns ? (uint64_t)(virt - c->epoch_ns) : 0;

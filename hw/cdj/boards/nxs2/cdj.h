@@ -312,6 +312,9 @@ typedef struct CdjC6x {
     uint32_t sample_addr[12], sample_size[12], sample_last[12];
     unsigned sample_n, sample_logged, sample_max;
     int64_t sample_next_ms, sample_every_ms, sample_after_ms;
+    bool irq_watch, irq_dumped;
+    uint32_t irq9_edges;
+    int64_t irq9_at_ns;
     uint16_t id1_p23[2];
     unsigned id1_p23_logged;
     uint32_t watch_tag;             /* bit 31 set while a watched read is pending */

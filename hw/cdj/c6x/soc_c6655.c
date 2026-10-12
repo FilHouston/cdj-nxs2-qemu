@@ -399,6 +399,19 @@ uint64_t c6655_soc_now_ns(const c6655_soc *s)
     return s->now_ns;
 }
 
+void c6655_soc_step_begin(c6655_soc *s, uint64_t mhz)
+{
+    s->step_mhz = mhz;
+    s->step_cycle0 = mhz ? c66x_get_cycle(s->cfg.core) : 0;
+}
+
+uint64_t soc_access_ns(const c6655_soc *s)
+{
+    if (!s->step_mhz)
+        return s->now_ns;
+    return s->now_ns + (c66x_get_cycle(s->cfg.core) - s->step_cycle0) * 1000 / s->step_mhz;
+}
+
 /*
  * McBSP words are not scheduled one by one. A word only changes what the CPU
  * can observe when it can interrupt (XINT/XEVT enabled into CIC0, or the EDMA3
@@ -486,6 +499,7 @@ uint64_t c6655_soc_next_irq_ns(const c6655_soc *s)
 void c6655_soc_advance(c6655_soc *s, uint64_t ns)
 {
     uint64_t target = s->now_ns + ns;
+    s->step_mhz = 0;
     s->stat[0]++;
     /* The common case at a small core quantum: nothing is due. Words in
      * between stay deferred until a visible event or a register access. */

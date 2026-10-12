@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 #include "xdj1000.h"
+#include "cdj_getenv.h"
 #include "qemu/timer.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
@@ -103,7 +104,12 @@ static void gfx2d_done(void *opaque)
  * x << 16 | y, a zero, and the four destination corners, top left first.
  * Register 0x4C is the source bitmap and 0x58 its pitch, both RGB565, and
  * 0x50 the destination with the pitch in 0x5C. Only axis-aligned
- * destinations are drawn.
+ * destinations are drawn. The pitch registers hold 8-pixel steps, like the
+ * addresses hold 16-byte ones: the firmware draws the 500 pixel wide marker
+ * strip under the overview with a destination pitch of 496 and blits it with
+ * a source pitch of 500, and only reading both as 496 keeps its 1-pixel
+ * markers upright.
+ * CDJ_2DG_LOG=1 prints every blit and fill with the registers it ran under.
  */
 #define GFX2D_LIST_MAX      1024
 #define GFX2D_PHYS_MASK     0x1ffffff0
@@ -120,6 +126,7 @@ static void gfx2d_done(void *opaque)
 #define GFX2D_REG_DEST_PITCH 0x5c
 #define GFX2D_REG_SRC       0x4c
 #define GFX2D_REG_SRC_PITCH 0x58
+#define GFX2D_PITCH_MASK    0xfffffff8
 #define GFX2D_REG_KEY       0x80
 #define GFX2D_REG_CLIP_MIN  0xd4
 #define GFX2D_REG_CLIP_MAX  0xd0
@@ -127,6 +134,32 @@ static void gfx2d_done(void *opaque)
 static uint32_t gfx2d_reg(XdjGfx2d *s, hwaddr off)
 {
     return ldl_le_p(&s->regs.reg[off]);
+}
+
+static uint32_t gfx2d_pitch(XdjGfx2d *s, hwaddr off)
+{
+    return (gfx2d_reg(s, off) & GFX2D_PITCH_MASK) * 2;
+}
+
+static void gfx2d_log(XdjGfx2d *s, const uint32_t *cmd, int words)
+{
+    static int enabled = -1;
+    int k;
+
+    if (enabled < 0) {
+        enabled = getenv("CDJ_2DG_LOG") != NULL;
+    }
+    if (!enabled) {
+        return;
+    }
+    fprintf(stderr, "2dg src=%08x/%x dst=%08x/%x clip=%08x-%08x cmd:",
+            gfx2d_reg(s, GFX2D_REG_SRC), gfx2d_reg(s, GFX2D_REG_SRC_PITCH),
+            gfx2d_reg(s, GFX2D_REG_DEST), gfx2d_reg(s, GFX2D_REG_DEST_PITCH),
+            gfx2d_reg(s, GFX2D_REG_CLIP_MIN), gfx2d_reg(s, GFX2D_REG_CLIP_MAX));
+    for (k = 0; k < words; k++) {
+        fprintf(stderr, " %08x", cmd[k]);
+    }
+    fprintf(stderr, "\n");
 }
 
 static void gfx2d_blit(XdjGfx2d *s, const uint32_t *w)
@@ -139,8 +172,8 @@ static void gfx2d_blit(XdjGfx2d *s, const uint32_t *w)
     int clip_y1 = gfx2d_reg(s, GFX2D_REG_CLIP_MAX) & 0xffff;
     int src_w = src_wh >> 16, src_h = src_wh & 0xffff;
     int dst_w = x1 - x0 + 1, dst_h = y1 - y0 + 1;
-    uint32_t src_pitch = gfx2d_reg(s, GFX2D_REG_SRC_PITCH) * 2;
-    uint32_t dst_pitch = gfx2d_reg(s, GFX2D_REG_DEST_PITCH) * 2;
+    uint32_t src_pitch = gfx2d_pitch(s, GFX2D_REG_SRC_PITCH);
+    uint32_t dst_pitch = gfx2d_pitch(s, GFX2D_REG_DEST_PITCH);
     hwaddr src = (gfx2d_reg(s, GFX2D_REG_SRC) & GFX2D_PHYS_MASK) +
                  (src_xy & 0xffff) * src_pitch + (src_xy >> 16) * 2;
     hwaddr dst = gfx2d_reg(s, GFX2D_REG_DEST) & GFX2D_PHYS_MASK;
@@ -196,7 +229,7 @@ static void gfx2d_blit(XdjGfx2d *s, const uint32_t *w)
 static void gfx2d_fill(XdjGfx2d *s, int x0, int y0, int x1, int y1,
                        uint16_t colour)
 {
-    uint32_t dst_pitch = gfx2d_reg(s, GFX2D_REG_DEST_PITCH) * 2;
+    uint32_t dst_pitch = gfx2d_pitch(s, GFX2D_REG_DEST_PITCH);
     hwaddr dst = gfx2d_reg(s, GFX2D_REG_DEST) & GFX2D_PHYS_MASK;
     uint16_t row[1024];
     int x, y;
@@ -249,6 +282,7 @@ static void gfx2d_run_list(XdjGfx2d *s)
                 for (k = 0; k < GFX2D_BLIT_WORDS; k++) {
                     cmd[k] = le32_to_cpu(w[i + k]);
                 }
+                gfx2d_log(s, cmd, GFX2D_BLIT_WORDS);
                 gfx2d_blit(s, cmd);
             }
             i += GFX2D_BLIT_WORDS;
@@ -266,6 +300,7 @@ static void gfx2d_run_list(XdjGfx2d *s)
                 for (k = 0; k < GFX2D_SHAPE_WORDS; k++) {
                     cmd[k] = le32_to_cpu(w[i + k]);
                 }
+                gfx2d_log(s, cmd, GFX2D_SHAPE_WORDS);
                 gfx2d_shape(s, cmd);
             }
             i += GFX2D_SHAPE_WORDS;

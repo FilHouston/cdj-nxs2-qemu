@@ -7,6 +7,8 @@
  * core events 25/68/24/64/22/27 to INT4..INT9, and CIC0 channels 0/2/3/4/5
  * carry TINT4L, EDMA3_CC_INT1, UPPINT, TINT5L and EDMA3_CC_INT2.
  */
+#include <stdio.h>
+#include <string.h>
 #include "soc_internal.h"
 
 /* ---- INTC ------------------------------------------------------------------ */
@@ -326,4 +328,49 @@ void cic_write(c6655_soc *s, uint32_t off, uint32_t val, unsigned size)
     } else
         soc_log_unimp(s, "CIC0", 0x02600000 + off, 1, val);
     cic_update(s);
+}
+
+void c6655_soc_dump_irq(c6655_soc *s)
+{
+    soc_intc *ic = &s->intc;
+    soc_cic *c = &s->cic0;
+    soc_edma *e = &s->edma;
+    char mux[160] = "", out[160] = "", rl[160] = "";
+
+    soc_log(s, "irqdump: EVTFLAG %08x %08x %08x %08x  EVTMASK %08x %08x %08x %08x  MEVTFLAG %08x %08x %08x %08x",
+            ic->flag[0], ic->flag[1], ic->flag[2], ic->flag[3],
+            ic->mask[0], ic->mask[1], ic->mask[2], ic->mask[3],
+            ic->flag[0] & ~ic->mask[0], ic->flag[1] & ~ic->mask[1],
+            ic->flag[2] & ~ic->mask[2], ic->flag[3] & ~ic->mask[3]);
+    for (int line = 4; line <= 15; line++) {
+        unsigned idx = line - 4;
+        size_t n = strlen(mux);
+        snprintf(mux + n, sizeof mux - n, " INT%d=ev%u", line,
+                 (ic->intmux[idx / 4] >> (8 * (idx % 4))) & 0x7F);
+    }
+    soc_log(s, "irqdump: INTMUX%s  combiner levels %x", mux, ic->combiner_level);
+    soc_log(s, "irqdump: CIC0 global_enable %x raw %08x %08x %08x  enabled(raw&enable) %08x %08x %08x  HINT_ENABLE %08x %08x %08x",
+            c->global_enable, c->raw[0], c->raw[1], c->raw[2],
+            c->raw[0] & c->enable[0], c->raw[1] & c->enable[1], c->raw[2] & c->enable[2],
+            c->hint_enable[0], c->hint_enable[1], c->hint_enable[2]);
+    for (unsigned h = 0; h < CIC_NHOST; h++)
+        if (c->out_level[h]) {
+            size_t n = strlen(out);
+            snprintf(out + n, sizeof out - n, " %u", h);
+        }
+    for (unsigned i = 0; i < 7 * 32; i++)
+        if (c->relatch_at[i]) {
+            size_t n = strlen(rl);
+            snprintf(rl + n, sizeof rl - n, " %u", i);
+        }
+    soc_log(s, "irqdump: CIC0 out_level high for hosts:%s  relatch pending for sysints:%s  input levels 22..31: %u%u%u%u%u%u%u%u%u%u",
+            out, rl, c->level[22], c->level[23], c->level[24], c->level[25], c->level[26],
+            c->level[27], c->level[28], c->level[29], c->level[30], c->level[31]);
+    soc_log(s, "irqdump: EDMA3 IPR %08x%08x IER %08x%08x IPR&IER %08x%08x, INT0..3 signal levels %u%u%u%u (IEVAL is write-only, not modelled)",
+            (uint32_t)(e->ipr >> 32), (uint32_t)e->ipr, (uint32_t)(e->ier >> 32), (uint32_t)e->ier,
+            (uint32_t)((e->ipr & e->ier) >> 32), (uint32_t)(e->ipr & e->ier),
+            s->sig_level[SIG_EDMA_INT0], s->sig_level[SIG_EDMA_INT0 + 1],
+            s->sig_level[SIG_EDMA_INT0 + 2], s->sig_level[SIG_EDMA_INT0 + 3]);
+    edma_dump(s);
+    spi_dump(s);
 }
