@@ -117,12 +117,18 @@ def record_deck(lay, m, tag, dry):
     with open(log, "wb") as f:
         qemu = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, env=env)
         try:
-            subprocess.run(driver, env=env)
-            qemu.wait(120)
+            driven = subprocess.run(driver, env=env).returncode == 0
+            if driven:
+                qemu.wait(120)
+        except subprocess.TimeoutExpired:
+            driven = False
+            chain.say("FAILED the deck did not quit within 120 s of 'quit' (%s)" % log)
         finally:
             if qemu.poll() is None:
                 qemu.kill()
                 qemu.wait()
+    if not driven:
+        return 1
     text = " ".join(_lines(log))
     ran = re.search(r"(c67[24]7): running, pc \S+, (\d+) cycles, .*?(\d+) cycles skipped idle", text)
     if not ran:
