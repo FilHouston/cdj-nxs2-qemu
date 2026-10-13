@@ -540,6 +540,7 @@ enum {
     CDJ_ETHI,                    /* EtherMAC, vector H'D60, IPRJ [11:8]       */
     CDJ_LCDCI,                   /* LCDC, vector H'F40, IPRB [11:8]           */
     CDJ_2DG_TRI,                 /* 2DG transfer end, vector H'780, IPRI [3:0] */
+    CDJ_SCIF0,                   /* SCIF0, vector H'C00, IPRG [15:12]        */
     CDJ_INTC_NR_SOURCES
 };
 
