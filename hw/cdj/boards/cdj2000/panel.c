@@ -63,6 +63,22 @@ static void cdj2000_panel_lever(CdjPnlLinkState *s, void *extra,
     rx[0x0F] ^= 0x02;
 }
 
+/*
+ * The panel's analogue fields. Until these were set the tempo slider did
+ * nothing at all: MAIN's conversion is skipped while the slider's centre
+ * reference is zero (the NXS2's cdj_pnl_build_defaults() reports the same two
+ * bytes, and cdj_pnl_link.h notes the firmware skips the conversion on a zero
+ * centre), so a live "lvl" on the position byte was converted from nothing.
+ *
+ * Tempo slider: bytes 4-5 position, bytes 6-7 the centre reference. Both at
+ * mid travel is 0.00 %; a live lvl overrides the position.
+ */
+static void cdj2000_panel_defaults(CdjPnlLinkState *s, void *extra, uint8_t *rx)
+{
+    rx[4] = 0x80;
+    rx[6] = 0x80;
+}
+
 static bool cdj2000_panel_link_selected(void *extra)
 {
     return cdj2000_panel_gui->link_selected();
@@ -77,6 +93,8 @@ void cdj2000_panel_init(MemoryRegion *sysmem, hwaddr addr,
                         const Cdj2000Display *display)
 {
     static CdjPnlLinkHooks hooks;
+
+    hooks.build_defaults = cdj2000_panel_defaults;
 
     if (display->lever_fwd) {
         hooks.build_last = cdj2000_panel_lever;
