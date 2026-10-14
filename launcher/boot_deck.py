@@ -256,15 +256,15 @@ class Deck:
         # bootloader reads it from.
         main_kernel = model_extract_n + "/main_unpacked.bin"
         main_base = main_kernel
-        main_mods = [m for m in self._main_mod_names() if env.get("CDJ_MAIN_" + m.upper()) == "1"]
+        main_mods = [m for m in self._main_mod_names(profile) if env.get("CDJ_MAIN_" + m.upper()) == "1"]
         if main_mods:
             if env.get("MAIN_BOOT") == "flash":
                 patched_flash = host.native("%s/cdj-%s-flash.bin" % (nonempty(env, "LOGDIR", tmp), tag))
-                self.main_patch = host.python_argv() + [self._patch_main(), "--flash", flash, patched_flash] + main_mods
+                self.main_patch = host.python_argv() + [self._patch_main(), "--model", profile.id, "--flash", flash, patched_flash] + main_mods
                 flash = patched_flash
             else:
                 patched_main = host.native("%s/cdj-%s-main.bin" % (nonempty(env, "LOGDIR", tmp), tag))
-                self.main_patch = host.python_argv() + [self._patch_main(), main_kernel, patched_main] + main_mods
+                self.main_patch = host.python_argv() + [self._patch_main(), "--model", profile.id, main_kernel, patched_main] + main_mods
                 main_kernel = patched_main
 
         # MAIN_BOOT=flash: MAIN resets into Pioneer's bootloader in the flash
@@ -279,10 +279,10 @@ class Deck:
         # each patch_gui.py mod <name> is on when CDJ_GUI_<NAME>=1.
         gui_image = model_extract_n + "/gui_unpacked.bin"
         gui_base = gui_image
-        gui_mods = [m for m in self._gui_mod_names() if env.get("CDJ_GUI_" + m.upper()) == "1"]
+        gui_mods = [m for m in self._gui_mod_names(profile) if env.get("CDJ_GUI_" + m.upper()) == "1"]
         if gui_mods:
             patched = host.native("%s/cdj-%s-gui.bin" % (nonempty(env, "LOGDIR", tmp), tag))
-            self.gui_patch = host.python_argv() + [self._patch_gui(), gui_image, patched] + gui_mods
+            self.gui_patch = host.python_argv() + [self._patch_gui(), "--model", profile.id, gui_image, patched] + gui_mods
             gui_image = patched
 
         self.gui_env = dict(env)
@@ -348,16 +348,16 @@ class Deck:
     def _patch_gui(self):
         return os.path.join(self.lay.emu, "mods", "patch_gui.py")
 
-    def _gui_mod_names(self):
-        out = subprocess.run(host.python_argv() + [self._patch_gui(), "--list"],
+    def _gui_mod_names(self, profile):
+        out = subprocess.run(host.python_argv() + [self._patch_gui(), "--model", profile.id, "--list"],
                              capture_output=True, text=True, check=True).stdout
         return [line.split()[0] for line in out.splitlines() if line.strip()]
 
     def _patch_main(self):
         return os.path.join(self.lay.emu, "mods", "patch_main.py")
 
-    def _main_mod_names(self):
-        out = subprocess.run(host.python_argv() + [self._patch_main(), "--list"],
+    def _main_mod_names(self, profile):
+        out = subprocess.run(host.python_argv() + [self._patch_main(), "--model", profile.id, "--list"],
                              capture_output=True, text=True, check=True).stdout
         return [line.split()[0] for line in out.splitlines() if line.strip()]
 

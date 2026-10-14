@@ -15,11 +15,12 @@ import pytest
 import patch_main
 import sigpatch
 from test_main_wave3data import FirmwareSh4, put_record
+from helpers import stock_mods
 
 SIG_AT = 0x200
 SPAN = SIG_AT + 8               # 4-aligned, like the firmware's
 RESUME = SPAN + 18
-CAVE = (0x400, 0x4400)
+CAVE = (0x440, 0x4400)
 FRAME, HANDLE, HASH = 0xF000, 0x5150, 0x7A7A
 FETCH, MALLOC, FREE = 0x082545F8, 0x08344A9C, 0x08344B42
 SHARED, SHARED_LOW = 0x081FFFFC, 0xE000
@@ -41,7 +42,7 @@ def build_image():
 
 def patched_image():
     profile, data = build_image()
-    image = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS,
+    image = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS),
                                      ['wave3ovfetch']))
     at = image.find(struct.pack('<I', SHARED), CAVE[0])
     image[at:at + 4] = struct.pack('<I', SHARED_LOW)

@@ -195,7 +195,7 @@ def rig_env(env, tag, ndecks, frames):
     # after 20 ms; a starved GUI link driver gives up and the display freezes.
     export_default(env, "CDJ_GUI_LINK_IDLE_MS", "20")
     # Every mod in mods.conf the caller left unset gets its registry default.
-    mod_list = mods.load(Layout())
+    mod_list = mods.load(Layout(), m.id)
     for m in mod_list:
         value = mods.default(mod_list, m.env)
         for name in mods.env_names(m.env):

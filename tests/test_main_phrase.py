@@ -494,4 +494,4 @@ def test_real_main_takes_the_phrase_mods_with_the_3band_ones_in_any_order():
     names = ['phrasefetch', 'phrasedata', 'wave3data', 'wave3detail', 'wave3ovdata', 'wave3ovfetch']
     assert patch_main.patch(data, names) == patch_main.patch(data, names[::-1])
     _, total = sigpatch.layout(patch_main.blob_path, patch_main.MODS)
-    assert patch_main.MAIN_PROFILE.ram_base + total <= 0x081FFFE0
+    assert 0x0811AF80 + total <= 0x081FFFE0

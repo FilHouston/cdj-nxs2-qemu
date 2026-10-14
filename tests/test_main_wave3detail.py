@@ -13,6 +13,7 @@ import pytest
 import patch_main
 import sigpatch
 from test_main_wave3data import FirmwareSh4
+from helpers import stock_mods
 
 SIG_AT = 0x202                  # puts the span at 2 mod 4, like the firmware's
 SPAN = SIG_AT + 2 * patch_main.DETAIL_CONVERTED['start']
@@ -44,7 +45,7 @@ def build_image():
 
 def patched_image():
     profile, data = build_image()
-    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS,
+    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS),
                                    ['wave3detail']))
     for real, low in ((0x0B531EB8, CTX + 28), (WORDS_FIXED, WORDS)):
         at = out.find(struct.pack('<I', real), CAVE[0])

@@ -15,7 +15,7 @@ import os
 import shlex
 import subprocess
 
-from . import chain, dsp_module, host, model, snapshot
+from . import chain, dsp_module, host, model, mods, snapshot
 from .boot_deck import _monsock, window_display
 from .chain import nonempty, say, warn_banner
 from .layout import Layout
@@ -67,6 +67,20 @@ def link_group(env):
     return "%s:%d" % (ip, host.pick_udp_port(int(port)))
 
 
+def patched_kernel(lay, m, env, kernel):
+    """MAIN with the mods cdj.conf switched on patched in, as a copy under tmp;
+    the image itself when none is on."""
+    names = [knob[len("CDJ_MAIN_"):].lower() for row in mods.load(lay, m.id)
+             for knob in mods.env_names(row.env)
+             if knob.startswith("CDJ_MAIN_") and env.get(knob) == "1"]
+    if not names:
+        return kernel
+    patched = os.path.join(lay.tmp, "cdj-%s-main.bin" % m.id)
+    subprocess.run(host.python_argv() + [os.path.join(lay.emu, "mods", "patch_main.py"),
+                                         "--model", m.id, kernel, patched] + names, check=True)
+    return patched
+
+
 def command(lay, m, env):
     """(argv, env) of the player's QEMU. The stick is a snapshot, so the
     firmware's writes to it never reach the image."""
@@ -81,7 +95,7 @@ def command(lay, m, env):
         env["CDJ_M16C_GUI"] = host.native(os.path.join(folder, m.display_flash))
     env["CDJ_PANEL_KEYSOCK"] = nonempty(env, "CDJ_PANEL_KEYSOCK", str(host.pick_udp_port(PANEL_KEY_PORT)))
     argv = [main_qemu(lay, env), "-M", m.main_machine, "-name", m.title,
-            "-kernel", host.native(os.path.join(folder, "main_unpacked.bin")),
+            "-kernel", host.native(patched_kernel(lay, m, env, os.path.join(folder, "main_unpacked.bin"))),
             "-serial", "file:" + os.path.join(lay.logs, m.id + ".log"),
             "-drive", "if=none,id=usbstk,file=%s,format=raw,snapshot=on" % host.native(lay.usb_image),
             "-device", "usb-storage,drive=usbstk,port=1"]

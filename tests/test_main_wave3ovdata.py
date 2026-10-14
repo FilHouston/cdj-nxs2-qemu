@@ -13,6 +13,7 @@ import pytest
 import patch_main
 import sigpatch
 from test_main_wave3data import FirmwareSh4
+from helpers import stock_mods
 
 SIG_AT = 0x200                  # where the real signature starts (4-aligned)
 SPAN = SIG_AT + 6               # the hooked span, 2 mod 4 like the firmware's
@@ -39,7 +40,7 @@ def build_image():
 
 def patched_image():
     profile, data = build_image()
-    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS,
+    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS),
                                    ['wave3ovdata']))
     for real, low in ((SLOT_FIXED, SLOT), (SHARED, SHARED_LOW)):
         at = out.find(struct.pack('<I', real), CAVE[0])
@@ -121,7 +122,7 @@ def test_the_four_main_mods_patch_together_in_any_order_and_clear_of_the_shared_
 
 def test_the_shared_words_lie_outside_what_the_mods_occupy():
     _, total = sigpatch.layout(patch_main.blob_path, patch_main.MODS)
-    assert patch_main.MAIN_PROFILE.ram_base + total <= 0x081FFFF4 < SHARED < patch_main.MAIN_PROFILE.ram_end
+    assert 0x0811AF80 + total <= 0x081FFFF4 < SHARED < 0x08200000
 
 
 @pytest.mark.parametrize('shared', [0, NEVER_WRITTEN])

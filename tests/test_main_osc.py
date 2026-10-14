@@ -11,6 +11,7 @@ import pytest
 
 import patch_main
 import sigpatch
+from helpers import stock_mods
 
 WRAPPER = 0x085113EC
 PORT = 50010
@@ -245,7 +246,7 @@ def build_image():
 
 def patched(names):
     profile, data = build_image()
-    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS, names))
+    out = bytearray(sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS), names))
     for real, low in FIXED.items():
         pat = struct.pack('<I', real)
         at = out.find(pat, CAVE[0])

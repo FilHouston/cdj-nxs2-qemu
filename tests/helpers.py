@@ -44,3 +44,10 @@ def lift(rel, names, namespace=None):
     ns = dict(namespace or {})
     exec(compile(ast.Module(body=body, type_ignores=[]), rel, "exec"), ns)
     return ns
+
+
+def stock_mods(mods):
+    """A registry as the routine tests need it: the routines keep the stock
+    firmware addresses they were written with, because the synthetic image
+    they are patched into has no firmware to find the addresses in."""
+    return {name: mod._replace(imports=()) for name, mod in mods.items()}

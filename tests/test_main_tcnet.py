@@ -16,6 +16,7 @@ import patch_main
 import sigpatch
 from test_main_abletonlink import LinkCpu, IP, TICK, TCNT4, DEVICE, CEP, POOL, GETTER, UDP_SND
 from test_main_osc import Sh4, WRAPPER
+from helpers import stock_mods
 
 DJCONT_OFF, STATUS_OFF = 0x40, 0x100
 DSP_STEP, SERIALISER = 0x300, 0x310
@@ -59,7 +60,7 @@ def build_image():
 @functools.lru_cache(maxsize=None)
 def patched_image(names):
     profile, data = build_image()
-    return sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS, list(names))
+    return sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS), list(names))
 
 
 class TcnetCpu(LinkCpu):

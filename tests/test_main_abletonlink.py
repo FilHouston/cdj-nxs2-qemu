@@ -16,6 +16,7 @@ import patch_main
 import sigpatch
 from test_main_osc import OscCpu, Sh4, WRAPPER
 from test_main_usbmidi import UsbMidiCpu
+from helpers import stock_mods
 
 BASE = 0
 BEAT_OFF = 0x300
@@ -65,7 +66,7 @@ ALL = ('abletonlink', 'abletonlinkpong', 'oscbeat')       # the mods whose sites
 @functools.lru_cache(maxsize=None)
 def patched_image(names):
     profile, data = build_image()
-    return sigpatch.patch(profile, patch_main.blob_path, data, patch_main.MODS, list(names))
+    return sigpatch.patch(profile, patch_main.blob_path, data, stock_mods(patch_main.MODS), list(names))
 
 
 def patched(names):

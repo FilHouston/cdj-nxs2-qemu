@@ -111,8 +111,10 @@ def test_selection_order_does_not_change_the_image(blobs):
 def test_a_hook_and_an_owner_mod_on_one_span_are_refused(blobs):
     profile, data = build_image()
     mods = {'a': MODS['a'], 'b': MODS['b']._replace(hook=False)}
-    with pytest.raises(SystemExit, match='overlap'):
-        sigpatch.patch(profile, blobs, data, mods, ['a', 'b'])
+    report = {}
+    sigpatch.patch(profile, blobs, data, mods, ['a', 'b'], report=report)
+    assert report['a'][0] == 'applied'
+    assert report['b'][0] == 'skipped' and 'overlaps' in report['b'][1]
 
 
 @pytest.mark.parametrize('ops, why', [

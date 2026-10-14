@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Apply code mods to the unpacked display (GUI) firmware image.
 
-    usage: patch_gui.py <gui_unpacked.bin> <patched.bin> <mod> [<mod>...]
+    usage: patch_gui.py [--model <id>] <gui_unpacked.bin> <patched.bin> <mod> [<mod>...]
            patch_gui.py --assemble     rebuild every mod's .bin from its .s
            patch_gui.py --check        fail if a committed .bin is not its .s assembled
            patch_gui.py --list
@@ -19,6 +19,11 @@ is made to the image, the way a firmware update would carry it:
   2. Each mod's call site is found by its instructions, not its address, and
      the image is left alone unless every site occurs exactly once.
 
+A mod whose site is not found, or whose space is taken, is left out and
+reported; the rest still go in, and an image that already carries a mod gets
+it left as it is. --model picks the player (default cdj2000nxs2); a model
+with no patch of a mod reports it as not applied.
+
 Naming several mods patches all of them in one pass, sharing one load-table
 record between them: pass every mod you want in a single call. Patching them
 one at a time and combining the results is not supported.
@@ -29,7 +34,6 @@ generic -- see sigpatch.py). That reading fits every record of v1.80 and
 v1.81, but the boot loader that walks the table is not in the image, so it is
 inferred, not read.
 """
-import glob
 import os
 import subprocess
 import sys
@@ -37,12 +41,32 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import anchors as A
+import modelfw
 import sigpatch
-from sigpatch import Mod
+from sigpatch import Anchor, Mod
 
 GUI_PROFILE = sigpatch.ImageProfile(
     flash_base=0x30000, loadtab_off=0x10, loadtab_n=20,
     ram_base=0x1C000000, ram_end=0x1C280000)
+
+# The phrase mod's merge point and the context around it (see its entry below).
+PHRASE_SITE = [
+    0xE627, 0x60F2, 0x3658, 0x59F1, 0x4680, 0x4600, 0x36BC, 0x369C,
+    0x2611, 0x52F2, 0x7801, 0x72FF, 0x2228, 0x8D02, 0x1F22, 0xAECE,
+    0x0009, 0xDB34, 0x6DB3,
+]
+
+# What each routine imports: its stock (v1.81) value and where the image being
+# patched has it. The two code addresses are fixed distances from the phrase
+# site (the loop top 0x242 bytes before the signature, the renderer's marker
+# pass where the replaced pair ends) because the loop top has no unique
+# signature of its own that stays clear of the replaced span.
+PHRASE_IMPORTS = (
+    (0x0E5BB45C, A.records),
+    (0x1C007B82, Anchor(PHRASE_SITE, 0, False, None, -0x242)),
+    (0x1C007DE6, Anchor(PHRASE_SITE, 17, False)),
+)
 
 MODS = {
     # The RGB branch of the centre-waveform renderer, from the height clamp to
@@ -106,11 +130,8 @@ MODS = {
         what='overview strip phrase band',
         target='gui',
         fw_versions=('1.81',),
-        sig=[
-            0xE627, 0x60F2, 0x3658, 0x59F1, 0x4680, 0x4600, 0x36BC, 0x369C,
-            0x2611, 0x52F2, 0x7801, 0x72FF, 0x2228, 0x8D02, 0x1F22, 0xAECE,
-            0x0009, 0xDB34, 0x6DB3,
-        ],
+        sig=PHRASE_SITE,
+        imports=PHRASE_IMPORTS,
         start=9,
         end=17,
         args=[],
@@ -119,32 +140,50 @@ MODS = {
 }
 
 
-def source(name):
-    """Each routine sits in its own mod's folder, mods/<mod>/."""
-    return glob.glob(os.path.join(HERE, '*', 'gui_%s.s' % name))[0]
+# The display firmware patches of each model. Only the CDJ-2000NXS2's display
+# processor is covered; the older decks' displays are not.
+PATCH_SETS = {modelfw.DEFAULT_MODEL: sigpatch.PatchSet(GUI_PROFILE, MODS)}
 
 
-def blob_path(name):
-    return source(name)[:-2] + '.bin'
+def mods_for(model):
+    return PATCH_SETS[model].mods if model in PATCH_SETS else {}
 
 
-def patch(data, names):
-    return sigpatch.patch(GUI_PROFILE, blob_path, data, MODS, names, tag='patch_gui')
+def every_mod():
+    return {name for patches in PATCH_SETS.values() for name in patches.mods}
 
 
-def _assemble(name, tmp, out):
+def source(name, model=modelfw.DEFAULT_MODEL):
+    """Each routine sits in its own mod's folder, mods/<mod>/ (mods/<mod>/<model>/
+    for a model other than the default)."""
+    return modelfw.routine_source('gui', name, model)
+
+
+def blob_path(name, model=modelfw.DEFAULT_MODEL):
+    return source(name, model)[:-2] + '.bin'
+
+
+def patch(data, names, model=modelfw.DEFAULT_MODEL, report=None, spans=None):
+    return sigpatch.patch_model(PATCH_SETS, blob_path, data, names, model, 'patch_gui', report, spans)
+
+
+def _assemble(name, model, tmp, out):
     obj = os.path.join(tmp, name + '.o')
     subprocess.run(['sh4-linux-gnu-as', '--isa=sh2a', '-big',
-                    '-o', obj, source(name)], check=True)
+                    '-o', obj, source(name, model)], check=True)
     subprocess.run(['sh4-linux-gnu-objcopy', '-O', 'binary', obj, out], check=True)
+
+
+def routines():
+    return [(model, name) for model, patches in PATCH_SETS.items() for name in patches.mods]
 
 
 def assemble():
     with tempfile.TemporaryDirectory() as tmp:
-        for name in MODS:
-            _assemble(name, tmp, blob_path(name))
+        for model, name in routines():
+            _assemble(name, model, tmp, blob_path(name, model))
             print('patch_gui: wrote %s (%d bytes)'
-                  % (blob_path(name), os.path.getsize(blob_path(name))))
+                  % (blob_path(name, model), os.path.getsize(blob_path(name, model))))
 
 
 def check():
@@ -152,12 +191,12 @@ def check():
     without --assemble would otherwise ship its old routine."""
     stale = []
     with tempfile.TemporaryDirectory() as tmp:
-        for name in MODS:
+        for model, name in routines():
             out = os.path.join(tmp, name + '.bin')
-            _assemble(name, tmp, out)
-            with open(out, 'rb') as f, open(blob_path(name), 'rb') as g:
+            _assemble(name, model, tmp, out)
+            with open(out, 'rb') as f, open(blob_path(name, model), 'rb') as g:
                 same = f.read() == g.read()
-            print('patch_gui: %s %s' % (os.path.basename(blob_path(name)),
+            print('patch_gui: %s %s' % (os.path.basename(blob_path(name, model)),
                                         'matches its .s' if same else 'is STALE'))
             if not same:
                 stale.append(name)
@@ -166,7 +205,7 @@ def check():
 
 
 def main():
-    args = sys.argv[1:]
+    model, args = modelfw.model_id(sys.argv[1:])
     if args == ['--assemble']:
         assemble()
         return
@@ -174,14 +213,14 @@ def main():
         check()
         return
     if args == ['--list']:
-        for name, mod in MODS.items():
+        for name, mod in mods_for(model).items():
             print('%-8s %s' % (name, mod.what))
         return
-    if len(args) < 3 or any(n not in MODS for n in args[2:]):
+    if len(args) < 3 or any(n not in every_mod() for n in args[2:]):
         raise SystemExit(__doc__)
     with open(args[0], 'rb') as f:
         data = f.read()
-    out = patch(data, args[2:])
+    out = patch(data, args[2:], model)
     with open(args[1], 'wb') as f:
         f.write(out)
 

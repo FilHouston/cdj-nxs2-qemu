@@ -1,25 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """The mods registry: mods/mods.conf, one row per user-facing on/off knob,
 shared with the bash tree (see that file for the row format). setup.py asks
-about each row and saves the choice to cdj.conf; start.py applies it; rig.py
-falls back to a row's own default when nothing else set the knob.
+about each row the chosen model is offered and saves the choice to cdj.conf;
+start.py applies it; rig.py falls back to a row's own default when nothing
+else set the knob.
 """
 
 import os
 from collections import namedtuple
 
-Mod = namedtuple("Mod", "key env on off default description")
+Mod = namedtuple("Mod", "key env on off default models description")
 
 
-def load(lay):
+def supports(mod, model_id):
+    return mod.models == "*" or model_id in mod.models.split(",")
+
+
+def load(lay, model_id=None):
+    """Every row of the registry, or with a model id only the rows offered for
+    that model."""
     mods = []
     with open(os.path.join(lay.emu, "mods", "mods.conf"), encoding="utf-8") as f:
         for line in f:
             line = line.rstrip("\n")
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
-            mods.append(Mod(*line.split("|", 5)))
-    return mods
+            mods.append(Mod(*line.split("|", 6)))
+    return [m for m in mods if model_id is None or supports(m, model_id)]
 
 
 def env_names(env):

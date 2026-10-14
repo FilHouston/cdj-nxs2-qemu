@@ -544,7 +544,8 @@ Toggle*, then press `LINK` in the transport. With the mod on, the toggle shows
 ## Mods
 
 Small on/off tweaks to how the deck behaves, each with its own default,
-listed in `mods/mods.conf`:
+listed in `mods/mods.conf`. Setup and start offer a player only the mods its
+row lists under `models` (`track_filter` is for the XDJ-700, the others for the CDJ-2000NXS2):
 
 | mod | what it does | default |
 |---|---|---|
@@ -556,6 +557,7 @@ listed in `mods/mods.conf`:
 | [`usb_midi`](mods/usb_midi/README.md) | Send MIDI Start, Stop, Continue and Timing Clock over the rear USB-B port, so a DAW or drum machine follows the deck. | off |
 | [`ableton_link`](mods/ableton_link/README.md) | Join Ableton Link as a peer: Live or any Link app on the deck's network follows its tempo and beat. | off |
 | [`tcnet`](mods/tcnet/README.md) | Act as a TCNet Master node, broadcasting the deck's play position, track length, beat in the bar and play state on UDP 60000/60001 and answering Metrics (BPM, speed) and MetaData requests on UDP 65023, so ShowKontrol, Resolume or other TCNet receivers can follow it. | off |
+| [`track_filter`](mods/track_filter/README.md) | XDJ-700 only: switch a BPM filter on and off with a long press of INFO in the track list, so only the tracks within 6 % of the loaded deck's BPM are listed. | off |
 
 Each mod has a page of its own: its knobs, what it patches, and what has and has
 not been verified. `osc` needs a relay on the emulator
@@ -574,8 +576,8 @@ what the deck boots into, not how it behaves once it is up.
 
 ### Patching a real firmware update
 
-`three_band`, `phrase`, `osc`, `usb_midi` and `ableton_link` are firmware code
-patches, not emulator knobs: the launcher applies the display ones to a copy of
+`three_band`, `phrase`, `osc`, `usb_midi`, `ableton_link`, `tcnet` and
+`track_filter` are firmware code patches, not emulator knobs: the launcher applies the display ones to a copy of
 the display image at boot (`mods/patch_gui.py`) and the MAIN ones to a copy of
 the MAIN image (`mods/patch_main.py`), the same code a real update would carry.
 `mods/patch_update.py` makes the same patches to a real Pioneer `.UPD` file, so
@@ -593,7 +595,7 @@ than being copied out to RAM the way a display patch is.
 Only a mod that is an actual firmware code patch is offered this way. An
 emulator-only knob such as `high_fps` or `live_clock` has nothing to write into
 a real update, and does not appear. `python mods/patch_update.py --list` shows
-what is available and which firmware version it was verified against; a
+what is available (`--model xdj700 --list` for another player) and which firmware version it was verified against; a
 mismatched version is refused unless you pass `--force-version`.
 
 **Combining mods.** Name as many as you like in one command, e.g.
@@ -611,6 +613,45 @@ own output (see `tests/`), but nobody has flashed a patched update into an
 actual player. Flashing a modified firmware update is entirely at your own
 risk. Keep the original file, and expect that a mistake here could mean a
 trip through service mode's recovery path, or worse.
+
+**Checking an update someone else modded.** One command checks any `.UPD`
+before you flash it, ours or not:
+
+```sh
+python mods/validate.py downloaded.UPD
+python mods/validate.py --stock official/XDJ700.UPD downloaded.UPD   # name the official file yourself
+```
+
+The player and version are read from the file's own section labels (for the
+CDJ-2000 and CDJ-900, whichever of their four files you name). If the file is
+byte for byte the official update, it says so and passes. Otherwise it looks for
+the official file of that player and version in the folder of the file, in `fw/`
+and in the player's firmware folder, and compares. A modded file never has the
+official checksums, so none are compared with the official ones: every
+checksum in the file (S-record lines, section CRC-16, packed MAIN sum, emergency
+image sum) is recomputed from the file's own bytes and has to agree with what
+the file stores. Then it prints what changed (sections, size growth, the
+firmware address ranges, whether our patcher writes the same bytes) and fails a
+change that lands in code the boot, the updater, the panel, the display link or
+the USB stick can run, a rewrite of existing code bigger than a call site, a
+write into "erased" bytes that something points at or a task can reach, and a
+packed MAIN that no longer fits the updater's window. A player nobody wrote
+patches for is checked the same way, from the erased bytes and the tasks in the
+image.
+
+| exit | meaning |
+|---|---|
+| 0 | safe as far as this checks |
+| 1 | a check failed; do not flash |
+| 2 | not shown safe: nothing failed, but there is no official copy of that version to compare with (only the checksums and the updater's window were checked), or a write could not be proven |
+
+NOT CHECKED, and printed after every run: indirect calls through RAM tables
+(the code a task reaches is a lower bound), what the firmware itself writes
+into a span at run time, that the boot loader and emergency updater in your
+unit are the ones in the file, whether the updater takes an update of equal
+version, and the display image's boot path (no call graph). Nothing here boots
+the file. A pass does not replace testing on a real deck, with a way back
+(the official file and service mode) at hand.
 
 <a id="service-mode"></a>
 

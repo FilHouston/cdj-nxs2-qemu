@@ -150,7 +150,7 @@ def main(argv):
     # mods.apply applies every mod's own cdj.conf choice (high_fps,
     # live_clock, ...) unless the caller's own environment already set that
     # knob. SERVICE MODE is not a mod (see above): it stays out of mods.conf.
-    mods.apply(mods.load(lay), c, env)
+    mods.apply(mods.load(lay, player.id), c, env)
     for k in ("QEMU_BUILD", "QEMU_EB_BUILD"):
         if c[k]:
             env[k] = c[k]
@@ -283,6 +283,7 @@ def _start_deck(lay, player, c, dry):
             if c[k]:
                 env[k] = c[k]
     env.update(DJLINK=c["CDJ_DJLINK"], GROUP=c["CDJ_GROUP"])
+    mods.apply(mods.load(lay, player.id), c, env)
     if c["CDJ_AUDIO"] != "1":
         env["NOSOUND"] = "1"
     if not _offer_rebuild(lay, env, dry):

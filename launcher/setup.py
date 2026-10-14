@@ -695,7 +695,7 @@ class Setup:
         if self.ask5:
             self._questions()
             if not o.dry:
-                conf.save(lay.conf, self._conf_values(mods.load(lay)))
+                conf.save(lay.conf, self._conf_values(mods.load(lay, self.model.id)))
         # A kept setup still takes the Pythons found now, e.g. after installing mido.
         if not self.ask5 and not lay.packaged and (
                 (self.py_midi and not _same(self.py_midi, c["CDJ_MIDI_PYTHON"]))
@@ -733,14 +733,14 @@ class Setup:
     def step_mods(self):
         con, o, c, lay = self.con, self.o, self.c, self.lay
         con.step(7, "Mods")
-        if not self.model.is_rig:
-            con.dim("the mods patch the CDJ-2000NXS2's firmware: skipped for the %s" % self.model.title)
+        mod_list = mods.load(lay, self.model.id)
+        if not mod_list:
+            con.dim("no mods are offered for the %s yet: skipped" % self.model.title)
             if self.ask5:
                 self._save_conf([])
             return
         con.info("Small on/off tweaks to how the deck behaves, each with its own default;")
         con.info("./setup.sh --reconfigure asks again, or edit cdj.conf by hand.")
-        mod_list = mods.load(lay)
         if self.configured and not o.reconfigure:
             con.good("keeping your mods in cdj.conf (./setup.sh --reconfigure to change them)")
             ask7 = False
@@ -867,7 +867,7 @@ class Setup:
         con.info("controller   %s%s" % (ctl, " (relay on 127.0.0.1:%s)" % c["CDJ_RELAY_PORT"] if ctl != "none" else ""))
         con.info("DSP module   %s" % self._module_summary())
         mod_line = ", ".join("%s=%s" % (m.key, "on" if c.get(mods.conf_key(m.env)) == m.on else "off")
-                              for m in mods.load(lay))
+                              for m in mods.load(lay, self.model.id))
         con.info("mods         %s" % mod_line)
         con.info("start it:    %s%s%s      stop: Ctrl-C (or %s stop from another shell)" % (con.B, run, con.N, run))
         return self.offer_start()

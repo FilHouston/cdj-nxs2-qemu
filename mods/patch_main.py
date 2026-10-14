@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Apply code mods to the unpacked MAIN firmware image.
 
-    usage: patch_main.py <main_unpacked.bin> <patched.bin> <mod> [<mod>...]
+    usage: patch_main.py [--model <id>] <main_unpacked.bin> <patched.bin> <mod> [<mod>...]
            patch_main.py --flash <flash.bin> <patched-flash.bin> <mod> [<mod>...]
            patch_main.py --assemble     rebuild every mod's .bin from its .s
            patch_main.py --list
@@ -33,7 +33,6 @@ engine moves the site's span into one trampoline that runs it once and then
 calls each selected mod's routine in registry order -- see
 sigpatch.trampoline() for the code and the contract a hook routine follows.
 """
-import glob
 import os
 import subprocess
 import sys
@@ -43,21 +42,32 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIRMWARE = os.path.join(HERE, '..', 'scripts', 'firmware')
 sys.path.insert(0, HERE)
 sys.path.insert(0, FIRMWARE)
+import anchors as A
+import modelfw
 import sigpatch
-from sigpatch import Mod
+from sigpatch import Cave, FreeEnd, Mod
 import main_decode
 import main_encode
-from make_flash import MAIN_END as FLASH_WINDOW_END
 
-# The 938,112-byte run of erased flash at file offset 0x11AF80 (address
-# 0x0811AF80-0x08200000), found by the same erased-flash scan
-# that found the GUI board's cave. Confirmed here, independently of that
-# scan, by decoding every mov.l/mov.w @(disp,PC) instruction in the whole
-# image (the same check sigpatch.literal_pool_reads() runs before every
-# patch) and finding none of their targets inside this range.
+# MAIN runs in place from 0x08000000. The routines go into the largest run of
+# erased flash in the image (on the v1.87 image the 938,112 bytes at
+# 0x0811AF80-0x08200000, which no pc-relative load in the image reads from),
+# found by sigpatch.place_inplace() rather than named here.
 MAIN_PROFILE = sigpatch.ImageProfile(
     flash_base=0x08000000, loadtab_off=0, loadtab_n=0,
-    ram_base=0x0811AF80, ram_end=0x08200000, byteorder='<')
+    ram_base=None, ram_end=None, byteorder='<')
+
+# The XDJ-700's MAIN runs in place as well, but no run of erased flash in it is
+# free: the 0xFF runs are bitmap data. Its room is four handlers of the kernel's
+# debug shell (semaphore, event flag, data queue, mail box: 1,168 bytes), which
+# nothing calls but the shell's command table, found by their name strings.
+XDJ700_PROFILE = sigpatch.ImageProfile(
+    flash_base=0x08000000, loadtab_off=0, loadtab_n=0,
+    ram_base=None, ram_end=None, byteorder='<',
+    cave=Cave(handlers=(b'show semaphore info', b'show event flag info',
+                        b'show data queue info', b'show mail box info'),
+              end=b'show mutex info',
+              sha256='2e4dc6aa5e8400152e828e99fe4df3116d0c2f7dd5e24223df2dc31e6121e376'))
 
 # The beat loop's call to the UDP send wrapper: the wrapper's literal, the
 # port store into the send descriptor at r15+0x150, the descriptor pointer
@@ -172,6 +182,51 @@ PREVIEW_READ = dict(
     end=13,
 )
 
+
+# What each routine imports: its stock (v1.87) value and where the image being
+# patched has it -- see anchors.py. The words handed from one routine to
+# another sit in the last bytes of the erased run (FreeEnd), out of reach of
+# the placed code.
+TICK = (0x0B0C5258, A.tick)
+TICK_GETTER = (0x08221D9E, A.tick_getter)
+DEVICE = (0x0AB84CFA, A.device)
+UDP_WRAP = (0x085113EC, A.udp_wrap)
+MALLOC = (0x08344A9C, A.malloc)
+FREE = (0x08344B42, A.free)
+MEMSET = (0x08533D50, A.memset)
+TAG_FETCH = (0x082545F8, A.anlz_tag_fetch)
+TAG_HELPERS = ((0x085336DC, A.tag_helper1), (0x085341D4, A.tag_helper2))
+OVERVIEW_SLOT = (0x0B569528, A.overview_slot)
+LINK_COMMON = (TICK, TICK_GETTER, DEVICE)
+TCNET_COMMON = (TICK, TICK_GETTER, UDP_WRAP, DEVICE)
+TCNET_RECORDS = ((0x0A371D3C, A.player_records), (0x09947488, A.play_position),
+                 (0x0B5125E8, A.track_length))
+
+IMPORTS = {
+    'wave3data': ((0x08289E98, A.anlz_pwv5_read), (0x0827A34E, A.anlz_close), MALLOC, FREE,
+                  (0x081FFFF4, FreeEnd(-12)), TAG_FETCH, MEMSET) + TAG_HELPERS,
+    'wave3detail': ((0x081FFFF4, FreeEnd(-12)), (0x0B531EB8, A.detail_record)),
+    'wave3ovdata': ((0x081FFFFC, FreeEnd(-4)), OVERVIEW_SLOT),
+    'wave3ovfetch': (MALLOC, FREE, (0x081FFFFC, FreeEnd(-4)), TAG_FETCH, MEMSET) + TAG_HELPERS,
+    'phrasefetch': ((0x081FFFF0, FreeEnd(-16)), FREE, MALLOC, MEMSET, TAG_FETCH),
+    'phrasedata': ((0x081FFFF0, FreeEnd(-16)), OVERVIEW_SLOT),
+    'abletonlink': LINK_COMMON,
+    'abletonlinkpong': ((0x0AB84CE8, A.link_cep), (0x0AB84CDC, A.link_pool),
+                        (0x08233CF6, A.udp_snd_dat), (0x08518DA8, A.link_release)) + LINK_COMMON,
+    'osc': (DEVICE, (0x0A35F39C, A.master), TICK, UDP_WRAP),
+    'oscbeat': (TICK,),
+    'tcnet': TCNET_COMMON,
+    'tcnettime': TCNET_RECORDS + TCNET_COMMON,
+    'tcnetdata': TCNET_RECORDS + TCNET_COMMON + (
+        (0x0994DE40, A.title), (0x0994E040, A.artist), (0x08233A22, A.udp_vcre_cep),
+        (0x0823415E, A.udp_rcv_dat), (0x08233CF6, A.udp_snd_dat)),
+    'usbmidi': ((0x084F511E, A.usb_midi_fill), (0x084F5148, A.usb_midi_commit),
+                (0x0BD4B0F0, A.midi_bufidx), (0x0BD4B0F4, A.midi_lens)),
+    'usbmiditick': (DEVICE, (0x0A371E60, A.player1_record), (0x0BD4B0F4, A.midi_lens),
+                    (0x0BD50E8C, A.midi_taskstate), (0x0BD4B0C8, A.midi_classflags),
+                    (0x08516448, A.set_flag)),
+}
+
 MODS = {
     # The detail-waveform builder's own PWV5 fetch, right after it returns:
     # r15+8/+12 still hold the &out_ptr/&out_size the fetch wrote into (read
@@ -191,6 +246,7 @@ MODS = {
         end=8,
         args=[],
         literal=False,
+        imports=IMPORTS['wave3data'],
     ),
     # Hooks DETAIL_CONVERTED: writes the words the wave3data mod packed into the
     # re-encoded waveform record, reading its buffer through two words at fixed
@@ -201,6 +257,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['wave3detail'],
         hook=True,
         **DETAIL_CONVERTED,
     ),
@@ -213,6 +270,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['wave3ovdata'],
         hook=True,
         **OVERVIEW_PUBLISH,
     ),
@@ -223,6 +281,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['wave3ovfetch'],
         hook=True,
         **PREVIEW_READ,
     ),
@@ -234,6 +293,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['phrasefetch'],
         hook=True,
         **PREVIEW_READ,
     ),
@@ -245,6 +305,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['phrasedata'],
         hook=True,
         **OVERVIEW_PUBLISH,
     ),
@@ -254,6 +315,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['abletonlink'],
         hook=True,
         **BEAT_SEND,
     ),
@@ -263,6 +325,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['abletonlinkpong'],
         hook=True,
         **LINK_RECEIVE,
     ),
@@ -272,6 +335,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['osc'],
         hook=True,
         **STATUS_SEND,
     ),
@@ -281,6 +345,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['oscbeat'],
         hook=True,
         **BEAT_SEND,
     ),
@@ -290,6 +355,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['tcnet'],
         hook=True,
         **STATUS_SEND,
     ),
@@ -299,6 +365,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['tcnettime'],
         hook=True,
         **DJCONT_PASS,
     ),
@@ -308,6 +375,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['tcnetdata'],
         hook=True,
         **DJCONT_PASS,
     ),
@@ -317,6 +385,7 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['usbmidi'],
         hook=True,
         **MIDI_TASK,
     ),
@@ -326,36 +395,86 @@ MODS = {
         fw_versions=('1.87',),
         args=[],
         literal=False,
+        imports=IMPORTS['usbmiditick'],
         hook=True,
         **TIMER_TICK,
     ),
 }
 
 
-def source(name):
-    """Each routine sits in its own mod's folder, mods/<mod>/."""
-    return glob.glob(os.path.join(HERE, '*', 'main_%s.s' % name))[0]
+# The XDJ-700 UI task's call to the key table's initialisation (the table at
+# 0x0BA39730, 16 bytes a key), with the first instructions after it: the loads of
+# the init and the fpscr mask, the call with its delay slot, the first fpscr
+# read and the load after it. The hook runs after the table is filled in, which
+# is when the INFO key's slot can be replaced.
+KEY_TABLE_INIT = dict(
+    sig=[0x2FE6, 0x4F22, 0xD12F, 0xDE30, 0x410B, 0x0009, 0x046A, 0xD22F,
+         0x24E9, 0x420B, 0x446A, 0x056A, 0xD72D, 0x25E9],
+    start=2,
+    end=8,
+)
+
+XDJ700_MODS = {
+    'trackfilter': Mod(
+        what='BPM filter on a long press of INFO',
+        target='main',
+        fw_versions=('1.15',),
+        args=[],
+        literal=False,
+        imports=((0x0BA39730, A.key_table), (0x08DB0DF4, A.browse_mode),
+                 (0x08DAB83A, A.update_list), (0x08B34CC0, A.set_filter_onoff),
+                 (0x08B34D5A, A.set_filter_condition), (0x08CE4FD0, A.list_refresh_conditions),
+                 (0x08CE5068, A.list_refresh_switch), (0x0B0E0E98, A.list_context),
+                 (0x0960375C, A.filter_state._replace(delta=0xE8)), (0x0C0E6B74, A.deck_bpm)),
+        hook=True,
+        **KEY_TABLE_INIT,
+    ),
+}
 
 
-def blob_path(name):
-    return source(name)[:-2] + '.bin'
+# The MAIN patches of each model. The CDJ-2000NXS2's and the XDJ-700's SH7724
+# firmware are covered so far; the other players' MAIN images have no routines yet.
+PATCH_SETS = {modelfw.DEFAULT_MODEL: sigpatch.PatchSet(MAIN_PROFILE, MODS),
+              'xdj700': sigpatch.PatchSet(XDJ700_PROFILE, XDJ700_MODS)}
 
 
-def patch(data, names):
-    return sigpatch.patch(MAIN_PROFILE, blob_path, data, MODS, names, tag='patch_main')
+def mods_for(model):
+    return PATCH_SETS[model].mods if model in PATCH_SETS else {}
 
 
-def patch_flash(flash, names):
+def every_mod():
+    return {name for patches in PATCH_SETS.values() for name in patches.mods}
+
+
+def source(name, model=modelfw.DEFAULT_MODEL):
+    """Each routine sits in its own mod's folder, mods/<mod>/ (mods/<mod>/<model>/
+    for a model other than the default)."""
+    return modelfw.routine_source('main', name, model)
+
+
+def blob_path(name, model=modelfw.DEFAULT_MODEL):
+    return source(name, model)[:-2] + '.bin'
+
+
+def patch(data, names, model=modelfw.DEFAULT_MODEL, report=None, spans=None):
+    return sigpatch.patch_model(PATCH_SETS, blob_path, data, names, model, 'patch_main', report, spans)
+
+
+def patch_flash(flash, names, model=modelfw.DEFAULT_MODEL, report=None):
     """Patch the packed MAIN application directly inside a flat flash image
     (flash.bin's own bytes, not the unpacked one -kernel loads)."""
-    _, image = main_decode.decode_image(flash)
-    patched = patch(image, names)
+    off = modelfw.load(model).main_off
+    window_end = modelfw.UPDATE_WINDOW_END.get(model)
+    if window_end is None:
+        raise SystemExit('patch_main: the update window of %s is not known' % model)
+    _, image = main_decode.decode_image(flash, off)
+    patched = patch(image, names, model, report)
     packed = main_encode.encode_image(patched)
-    if len(packed) > FLASH_WINDOW_END - main_decode.MAIN_IMG_OFF:
+    if len(packed) > window_end - off:
         raise SystemExit('patch_main: patched image (%d bytes) does not fit '
                          'the flash window' % len(packed))
     out = bytearray(flash)
-    lo, hi = main_decode.MAIN_IMG_OFF, FLASH_WINDOW_END
+    lo, hi = off, window_end
     out[lo:hi] = b'\xff' * (hi - lo)      # erase the window, as the real updater does
     out[lo:lo + len(packed)] = packed
     return bytes(out)
@@ -363,24 +482,25 @@ def patch_flash(flash, names):
 
 def assemble():
     with tempfile.TemporaryDirectory() as tmp:
-        for name in MODS:
-            obj = os.path.join(tmp, name + '.o')
-            subprocess.run(['sh4-linux-gnu-as', '--isa=sh4', '-little',
-                            '-I', os.path.dirname(source(name)),
-                            '-o', obj, source(name)], check=True)
-            subprocess.run(['sh4-linux-gnu-objcopy', '-O', 'binary',
-                            obj, blob_path(name)], check=True)
-            print('patch_main: wrote %s (%d bytes)'
-                  % (blob_path(name), os.path.getsize(blob_path(name))))
+        for model, patches in PATCH_SETS.items():
+            for name in patches.mods:
+                obj = os.path.join(tmp, name + '.o')
+                subprocess.run(['sh4-linux-gnu-as', '--isa=sh4', '-little',
+                                '-I', os.path.dirname(source(name, model)),
+                                '-o', obj, source(name, model)], check=True)
+                subprocess.run(['sh4-linux-gnu-objcopy', '-O', 'binary',
+                                obj, blob_path(name, model)], check=True)
+                print('patch_main: wrote %s (%d bytes)'
+                      % (blob_path(name, model), os.path.getsize(blob_path(name, model))))
 
 
 def main():
-    args = sys.argv[1:]
+    model, args = modelfw.model_id(sys.argv[1:])
     if args == ['--assemble']:
         assemble()
         return
     if args == ['--list']:
-        for name, mod in MODS.items():
+        for name, mod in mods_for(model).items():
             print('%-8s %s' % (name, mod.what))
         return
     if args[:1] == ['--flash']:
@@ -388,11 +508,11 @@ def main():
         flasher = True
     else:
         flasher = False
-    if len(args) < 3 or any(n not in MODS for n in args[2:]):
+    if len(args) < 3 or any(n not in every_mod() for n in args[2:]):
         raise SystemExit(__doc__)
     with open(args[0], 'rb') as f:
         data = f.read()
-    out = patch_flash(data, args[2:]) if flasher else patch(data, args[2:])
+    out = patch_flash(data, args[2:], model) if flasher else patch(data, args[2:], model)
     with open(args[1], 'wb') as f:
         f.write(out)
 
