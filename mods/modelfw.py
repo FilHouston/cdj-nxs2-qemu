@@ -2,11 +2,13 @@
 """What the mod tools need to know about one model's firmware, read from its
 profile (models/<id>.conf): which sections of its update hold the images a mod
 can patch, and where the packed MAIN application starts in the update's
-address space. The default model is the one whose patches sit directly in
-each mod's folder; any other model's sit in mods/<mod>/<model>/.
+address space; and which routines the mod folders declare for it.
 """
 import collections
+import functools
 import glob
+import importlib
+import importlib.util
 import os
 import re
 import sys
@@ -106,8 +108,38 @@ def load(model):
     return Firmware(sections, int(m.main_lzss, 0) - 4)
 
 
+def player(model):
+    """What the mods of `model` share: mods/players/<model>.py."""
+    return importlib.import_module('players.' + model)
+
+
+@functools.lru_cache(maxsize=None)
+def mod_patch(mod, model):
+    """The routines `mod` patches into `model`: mods/<mod>/<model>/patch.py."""
+    path = os.path.join(HERE, mod, model, 'patch.py')
+    spec = importlib.util.spec_from_file_location('%s_%s_patch' % (mod, model), path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def declared_mods(target):
+    """{model: {routine name: Mod}} of every routine a mod folder declares for
+    `target` ('main' or 'gui')."""
+    found = {}
+    for path in sorted(glob.glob(os.path.join(HERE, '*', '*', 'patch.py'))):
+        folder = os.path.dirname(path)
+        mod, model = os.path.basename(os.path.dirname(folder)), os.path.basename(folder)
+        routines = found.setdefault(model, {})
+        for name, routine in mod_patch(mod, model).MODS.items():
+            if routine.target != target:
+                continue
+            if name in routines:
+                raise SystemExit('%s: routine %s is declared by two mods' % (model, name))
+            routines[name] = routine
+    return {model: routines for model, routines in found.items() if routines}
+
+
 def routine_source(prefix, name, model):
-    """The assembly of one mod's routine for `model`: mods/<mod>/<prefix>_<name>.s
-    for the default model, mods/<mod>/<model>/<prefix>_<name>.s for another."""
-    sub = '' if model == DEFAULT_MODEL else model
-    return glob.glob(os.path.join(HERE, '*', sub, '%s_%s.s' % (prefix, name)))[0]
+    """The assembly of one mod's routine for `model`: mods/<mod>/<model>/<prefix>_<name>.s."""
+    return glob.glob(os.path.join(HERE, '*', model, '%s_%s.s' % (prefix, name)))[0]

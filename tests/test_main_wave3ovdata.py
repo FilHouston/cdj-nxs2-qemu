@@ -12,8 +12,9 @@ import pytest
 
 import patch_main
 import sigpatch
+from players import cdj2000nxs2 as nxs2
 from test_main_wave3data import FirmwareSh4
-from helpers import stock_mods
+from helpers import mod_row, stock_mods
 
 SIG_AT = 0x200                  # where the real signature starts (4-aligned)
 SPAN = SIG_AT + 6               # the hooked span, 2 mod 4 like the firmware's
@@ -29,7 +30,7 @@ NEVER_WRITTEN = 0xFFFFFFFF
 
 def build_image():
     d = bytearray(0x4000)
-    for k, op in enumerate(patch_main.OVERVIEW_PUBLISH['sig']):
+    for k, op in enumerate(nxs2.OVERVIEW_PUBLISH['sig']):
         struct.pack_into('<H', d, SIG_AT + 2 * k, op)
     struct.pack_into('<I', d, (SPAN & ~3) + 4 + 0x4E * 4, MEMCPY)
     d[CAVE[0]:CAVE[1]] = b'\xff' * (CAVE[1] - CAVE[0])
@@ -88,14 +89,11 @@ def run_publisher(shared):
 def test_registered_for_main_as_a_hook_on_the_overview_copy():
     mod = patch_main.MODS['wave3ovdata']
     assert mod.target == 'main' and mod.hook and not mod.literal
-    assert dict(sig=mod.sig, start=mod.start, end=mod.end) == patch_main.OVERVIEW_PUBLISH
+    assert dict(sig=mod.sig, start=mod.start, end=mod.end) == nxs2.OVERVIEW_PUBLISH
 
 
 def test_the_three_band_row_enables_every_main_mod_with_the_display_ones():
-    path = os.path.join(os.path.dirname(patch_main.__file__), 'mods.conf')
-    (row,) = [line.split('|') for line in open(path, encoding='utf-8')
-              if line.startswith('three_band|')]
-    assert set(row[1].split('+')) == {
+    assert set(mod_row('three_band').env.split('+')) == {
         'CDJ_GUI_WAVE3', 'CDJ_GUI_WAVE3OV', 'CDJ_MAIN_WAVE3DATA', 'CDJ_MAIN_WAVE3DETAIL',
         'CDJ_MAIN_WAVE3OVFETCH', 'CDJ_MAIN_WAVE3OVDATA'}
 
@@ -107,7 +105,7 @@ REAL_MAIN = os.path.join(os.path.dirname(__file__), '..', '..', 'extract', 'main
 def test_real_main_has_the_signature_once():
     with open(REAL_MAIN, 'rb') as f:
         data = f.read()
-    img = sigpatch.Image(patch_main.MAIN_PROFILE, data)
+    img = sigpatch.Image(nxs2.MAIN_PROFILE, data)
     mod = patch_main.MODS['wave3ovdata']
     assert img.addr_of(sigpatch.find_sig(img, mod) + 2 * mod.start) == 0x084E7CAA
 

@@ -9,6 +9,7 @@ import pytest
 
 import patch_main
 import sigpatch
+from players import cdj2000nxs2 as nxs2
 from sigpatch import Mod
 from test_main_osc import Sh4
 
@@ -141,5 +142,5 @@ def test_real_main_takes_every_main_mod_at_once_deterministically():
     for name in ('abletonlink', 'abletonlinkpong', 'oscbeat', 'usbmidi'):
         alone = patch_main.patch(data, [name])
         mod = patch_main.MODS[name]
-        span = sigpatch.find_sig(sigpatch.Image(patch_main.MAIN_PROFILE, data), mod) + 2 * mod.start
+        span = sigpatch.find_sig(sigpatch.Image(nxs2.MAIN_PROFILE, data), mod) + 2 * mod.start
         assert alone[span:span + 2 * (mod.end - mod.start)] == out[span:span + 2 * (mod.end - mod.start)]

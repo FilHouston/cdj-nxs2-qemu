@@ -37,7 +37,7 @@ def models_dir():
     return os.path.join(Layout().emu, "models")
 
 
-def _parse(text):
+def parse(text):
     # A checkout with core.autocrlf can give the profile CRLF endings; a value
     # ending in a carriage return would name no machine.
     text = text.replace("\r\n", "\n")
@@ -55,7 +55,7 @@ def _parse(text):
 
 def _released(model_id):
     with open(os.path.join(models_dir(), model_id + ".conf"), encoding="utf-8") as f:
-        return float(_parse(f.read())["MODEL_RELEASED"])
+        return float(parse(f.read())["MODEL_RELEASED"])
 
 
 def list_models():
@@ -131,7 +131,7 @@ def load(model_id=None):
     if not os.path.isfile(path):
         raise ModelError("unknown model '%s'; known: %s" % (model_id, "".join(m + " " for m in list_models())))
     with open(path, encoding="utf-8") as f:
-        values = _parse(f.read())
+        values = parse(f.read())
     for v in REQUIRED:
         if not values.get(v):
             raise ModelError("model profile %s does not set %s" % (path, v))

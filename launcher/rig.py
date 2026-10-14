@@ -15,7 +15,7 @@ end of the load; PLAY pauses and resumes. The machine is paced to real time
 import os
 import subprocess
 
-from . import chain, dsp_module, host, mods
+from . import chain, dsp_module, host, mods, sites
 from . import model as cdj_model
 from .chain import export_default, ifset, nonempty, warn_banner
 from .layout import Layout
@@ -92,10 +92,17 @@ def rig_env(env, tag, ndecks, frames):
     run one."""
     say, warn = chain.say, chain.err
     m = cdj_model.load()
+    found = sites.find(Layout(), m)
     for name, value in m.rig_env.items():
         export_default(env, name, value)
-    if m.dsp_idle:
+    if m.dsp_idle and found.supported:
         export_default(env, m.dsp_idle_knob, m.dsp_idle)
+    if not found.supported:
+        env["CDJ_SR_SEED_SLOT"] = "0x%08X" % found.get("sr_save_slot") if found.has("sr_save_slot") else "0"
+    if found.has("deck_ready"):
+        export_default(env, "READY_ADDR", "0x%08X" % found.get("deck_ready"))
+    else:
+        export_default(env, "READY_WAIT", "0")
     if env.get("NOSOUND", "0") != "1":
         # Ring/prefill/cap 3000/150/450 ms; a narrower band ping-pongs between
         # underruns and trims. The larger buffer rides over a host sink that
@@ -120,7 +127,7 @@ def rig_env(env, tag, ndecks, frames):
     export_default(env, "MEDIA_MODE", "img")
     # The display board's RTOS idle loop at 0x0E510588 becomes a halt, which
     # frees most of a core. The hook checks the opcode first. Empty = no hook.
-    env["CDJ_GUI_IDLE_PC"] = ifset(env, "CDJ_GUI_IDLE_PC", "0x0E51058A")
+    env["CDJ_GUI_IDLE_PC"] = ifset(env, "CDJ_GUI_IDLE_PC", "0x0E51058A" if found.gui_supported else "")
     if host.is_windows():
         export_default(env, "QEMU_BUILD", "/c/qemu-build-mingw")
         export_default(env, "QEMU_EB_BUILD", "/c/qemu-build-mingw-eb")
@@ -137,7 +144,10 @@ def rig_env(env, tag, ndecks, frames):
     own = dsp_module.check(Layout(), m)
     if own.notice and not chosen and (own.path or not env["C66X_JIT"]):
         warn_banner(*own.notice)
-    export_default(env, "CDJ_NATIVE_LIBC", "1")
+    # The hooks sit at fixed addresses of the supported MAIN.
+    export_default(env, "CDJ_NATIVE_LIBC", "1" if found.supported else "0")
+    if not found.supported:
+        chain.unset(env, "CDJ_NATIVE_COPY")
 
     # Pro DJ Link, on by default. DJLINK=0 turns it off; DJLINK=tap:<adapter>
     # attaches the deck to a host TAP adapter (one deck) instead of the segment.
@@ -171,7 +181,9 @@ def rig_env(env, tag, ndecks, frames):
         export_default(env, "CDJ_NETDEV", netdev)
         export_default(env, "CDJ_ETHER_PHYADS", "0,1,5")
         env["CDJ_ETHER_MAC"] = ifset(env, "CDJ_ETHER_MAC", "02:00:00:00:00:0%N%")
-        export_default(env, "CDJ_PCALL2", "0x08345574:0x08516448:0x2a:0x50000001:0x0")
+        if found.has("pcall_pc", "set_flag"):
+            export_default(env, "CDJ_PCALL2", "0x%08X:0x%08X:0x2a:0x50000001:0x0"
+                           % (found.get("pcall_pc"), found.get("set_flag")))
         if nonempty(env, "DJLINK_DHCP", "1") != "1":
             dhcp = None
         say("[%s] Pro DJ Link ON: %s, MAC %s, leases -> /tmp/cdj-%s-dhcpd.log" % (tag, where, env["CDJ_ETHER_MAC"], tag))
@@ -194,7 +206,7 @@ def rig_env(env, tag, ndecks, frames):
     # A receive that finds the queue empty gets the newest heartbeat again
     # after 20 ms; a starved GUI link driver gives up and the display freezes.
     export_default(env, "CDJ_GUI_LINK_IDLE_MS", "20")
-    # Every mod in mods.conf the caller left unset gets its registry default.
+    # Every mod the caller left unset gets its registry default.
     mod_list = mods.load(Layout(), m.id)
     for m in mod_list:
         value = mods.default(mod_list, m.env)

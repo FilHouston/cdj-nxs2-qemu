@@ -24,6 +24,7 @@ import make_flash
 import patch_main
 import patch_update
 import sigpatch
+from players import cdj2000nxs2 as nxs2
 from sigpatch import Mod
 from helpers import path, run_script
 
@@ -302,9 +303,9 @@ def test_real_main_dummy_mod_lands_in_the_confirmed_code_cave(tmp_path, monkeypa
     blob = tmp_path / 'dummy.bin'
     blob.write_bytes(b'\x00\x09' * 2)
 
-    patched = sigpatch.patch(patch_main.MAIN_PROFILE, lambda n: str(blob), image, {'dummy': dummy}, ['dummy'])
+    patched = sigpatch.patch(nxs2.MAIN_PROFILE, lambda n: str(blob), image, {'dummy': dummy}, ['dummy'])
     assert patched != image
-    run = sigpatch.largest_erased_run(sigpatch.Image(patch_main.MAIN_PROFILE, image))
+    run = sigpatch.largest_erased_run(sigpatch.Image(nxs2.MAIN_PROFILE, image))
     cave_off = (run.start() + 15) & ~15
     assert patched[cave_off:cave_off + 4] == b'\x00\x09\x00\x09'
     assert patched[off:off + 16] != image[off:off + 16]

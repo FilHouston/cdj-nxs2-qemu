@@ -228,6 +228,7 @@ def _step_dsp(tmp_path, model_id, **opts):
     s = _setup(tmp_path, **opts)
     s.model = model.load(model_id)
     s.lay.jit_cache = str(tmp_path / "c14gen")
+    s.lay.root = s.lay.extract = str(tmp_path)
     return s
 
 
@@ -273,6 +274,7 @@ def test_the_recording_options_are_gone(capsys):
             parse_args([old])
         assert e.value.code == 2
     assert parse_args(["--skip-dsp"]).skip_dsp
+    assert parse_args(["--any-firmware"]).any_firmware and not parse_args([]).any_firmware
 
 
 def test_cdj2000_names_its_idle_loop_for_the_c6727(tree):

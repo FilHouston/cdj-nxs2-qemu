@@ -83,8 +83,22 @@ void cdj_tmu_init(MemoryRegion *sysmem, hwaddr base,
                 ch0, ch1, ch2, NULL);
 }
 
-void cdj_scif(MemoryRegion *sysmem, const char *id,
-                     hwaddr addr, Chardev *chr)
+/* RXI and TXI share one INTC source: keep both levels, drive their OR. */
+typedef struct CdjScifIrq {
+    qemu_irq out;
+    unsigned level;
+} CdjScifIrq;
+
+static void cdj_scif_irq_in(void *opaque, int n, int level)
+{
+    CdjScifIrq *m = opaque;
+
+    m->level = level ? (m->level | (1u << n)) : (m->level & ~(1u << n));
+    qemu_set_irq(m->out, m->level != 0);
+}
+
+void cdj_scif_irq(MemoryRegion *sysmem, const char *id,
+                  hwaddr addr, Chardev *chr, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *sb;
@@ -98,12 +112,27 @@ void cdj_scif(MemoryRegion *sysmem, const char *id,
     sysbus_realize_and_unref(sb, &error_fatal);
     sysbus_mmio_map(sb, 0, addr);
 
-    /* eri/rxi/txi/bri are not connected; the firmware polls. */
+    /* Without an interrupt line eri/rxi/txi/bri stay unconnected and the
+     * firmware has to poll. */
+    if (irq) {
+        CdjScifIrq *m = g_new0(CdjScifIrq, 1);
+        qemu_irq *in = qemu_allocate_irqs(cdj_scif_irq_in, m, 2);
+
+        m->out = irq;
+        qdev_connect_gpio_out_named(dev, "rxi", 0, in[0]);
+        qdev_connect_gpio_out_named(dev, "txi", 0, in[1]);
+    }
     mr = sysbus_mmio_get_region(sb, 0);
     alias = g_malloc(sizeof(*alias));
     memory_region_init_alias(alias, OBJECT(dev), id, mr, 0,
                              memory_region_size(mr));
     memory_region_add_subregion(sysmem, A7ADDR(addr), alias);
+}
+
+void cdj_scif(MemoryRegion *sysmem, const char *id,
+              hwaddr addr, Chardev *chr)
+{
+    cdj_scif_irq(sysmem, id, addr, chr, NULL);
 }
 
 

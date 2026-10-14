@@ -25,7 +25,7 @@ already there:
   6 your setup      one deck or two, Pro DJ Link, audio, a MIDI controller,
                     saved to cdj.conf -- which ./start.sh then uses
   7 mods            small on/off tweaks to how the deck behaves (see
-                    mods/mods.conf), all defaults in one answer or one
+                    mods/<mod>/mod.conf), all defaults in one answer or one
                     at a time, saved alongside your setup
 
 options:
@@ -41,6 +41,9 @@ options:
                          DSP module (step 5) for the ones with a DSP profile
   --firmware <file>      your update file for that player (re-installs the images);
                          C2KNXS2.UPD for the CDJ-2000NXS2
+  --any-firmware         with --firmware: install any update for that player, not just the
+                         supported version (a modded file or another version); unsupported,
+                         warns about what differs and may not boot
   --music <folder>       the rekordbox USB export to image (re-makes the stick)
   --tracks <folder>      a plain folder of music to image instead, analysed by baken
   --decks 1|2            --name <deck name>    --djlink on|off   --audio on|off
@@ -81,6 +84,7 @@ ON_OFF = ("on", "1", "yes", "y", "off", "0", "no", "n")
 class Options:
     def __init__(self):
         self.dry = self.yes = self.skip_build = self.rebuild = self.skip_dsp = self.reconfigure = False
+        self.any_firmware = False
         self.model = self.firmware = self.music = self.tracks = self.decks = self.name = self.djlink = ""
         self.audio = self.controller = self.relay = self.build_dir = ""
 
@@ -102,6 +106,8 @@ def parse_args(argv):
             o.reconfigure = True
         elif a == "--skip-dsp":
             o.skip_dsp = True
+        elif a == "--any-firmware":
+            o.any_firmware = True
         elif a in VALUE_OPTS:
             attr, what = VALUE_OPTS[a]
             if i + 1 >= len(argv) or not argv[i + 1]:
@@ -474,13 +480,18 @@ class Setup:
         force = any(os.path.exists(os.path.join(self.fw_dir, f)) for f in m.images)
         label = "unpacking and verifying %s" % os.path.basename(upd)
         log = os.path.join(lay.logs, "firmware.log")
-        argv, env = launcher_cmd("firmware", "--model", m.id, "--install", *(["--force"] if force else []), upd)
-        if not con.run_phase(label, log, "only the v%s update (sha256 %s...) is supported; "
-                             "the log says which image differed" % (m.fw_version, m.upd_sha256[0][:8]),
-                             argv, rel=lay.emu, env=env):
+        argv, env = launcher_cmd("firmware", "--model", m.id, "--install", *(["--force"] if force else []),
+                                 *(["--any-firmware"] if o.any_firmware else []), upd)
+        hint = ("the log says what could not be unpacked" if o.any_firmware else
+                "only the v%s update (sha256 %s...) is supported; the log says which image differed; "
+                "--any-firmware installs another one anyway" % (m.fw_version, m.upd_sha256[0][:8]))
+        if not con.run_phase(label, log, hint, argv, rel=lay.emu, env=env):
             con.die("the firmware was not installed; nothing in %s/ changed" % shown)
         if self.firmware_ready() and not o.dry:
             con.good("%d images installed in %s/" % (len(m.images), shown))
+            differ = firmware.differing_images(self.fw_dir, m)
+            if differ:
+                con.warn("unsupported firmware: %s not the v%s images" % (" ".join(differ), m.fw_version))
 
     def make_image(self, folder, expect_pioneer=True):
         con, lay = self.con, self.lay
@@ -631,6 +642,9 @@ class Setup:
         con.step(5, "DSP module")
         if not m.builds_dsp_module:
             con.dim("not needed for the %s: its DSP is not emulated" % m.title)
+            return
+        if not m.is_rig and firmware.differing_images(self.fw_dir, m):
+            con.dim("not built for unsupported firmware: the generator needs the DSP idle loop of the supported update")
             return
         shown = "~/c14gen" if not lay.packaged else lay.jit_cache
         module = dsp_module.check(lay, m)

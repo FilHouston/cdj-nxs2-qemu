@@ -17,6 +17,7 @@ import patch_gui
 import patch_main
 import sigpatch
 import validate
+from players import cdj2000nxs2 as nxs2
 from helpers import path, run_script
 
 REAL_NXS2 = path("..", "fw", "unzipped", "C2KNXS2.UPD")
@@ -29,7 +30,7 @@ REAL_XDJ700 = path("..", "fw", "crossmodel", "XDJ700_v115", "XDJ700.UPD")
 needs_xdj700 = pytest.mark.skipif(not os.path.exists(REAL_XDJ700), reason="XDJ700.UPD 1.15 not present")
 
 ROWS = ("osc", "usb_midi", "ableton_link", "tcnet", "three_band", "phrase")
-PROFILES = {"main": patch_main.MAIN_PROFILE, "gui": patch_gui.GUI_PROFILE}
+PROFILES = {"main": nxs2.MAIN_PROFILE, "gui": nxs2.GUI_PROFILE}
 
 
 # -- sigpatch.py: free space is proven, not assumed ------------------------------
@@ -144,7 +145,7 @@ def check_main(monkeypatch, spans, ranges, stock=None):
             out[off:off + size] = b"\x00" * size
     monkeypatch.setattr(bootcrit, "closure", lambda img, base=0, every_task=False: bootcrit.Closure(
         ranges, {0x100: "UpDtae_TASK"}, 3, {"UpDtae_TASK": 0}, []))
-    profile = patch_main.MAIN_PROFILE
+    profile = nxs2.MAIN_PROFILE
     rep = validate.Report()
     validate.check_main_image(stock, bytes(out), profile, spans, rep)
     return rep
@@ -178,7 +179,7 @@ def test_a_change_no_mod_declared_is_refused(monkeypatch):
     monkeypatch.setattr(bootcrit, "closure", lambda img, base=0, every_task=False: bootcrit.Closure(
         [(0x100, 0x200)], {}, 0, {"UpDtae_TASK": 0}, []))
     rep = validate.Report()
-    validate.check_main_image(stock, bytes(out), patch_main.MAIN_PROFILE, {"modx": [(0x550, 8, "site")]}, rep)
+    validate.check_main_image(stock, bytes(out), nxs2.MAIN_PROFILE, {"modx": [(0x550, 8, "site")]}, rep)
     assert any(state == "FAIL" and "no mod declared" in text for state, text in rep.lines)
 
 
@@ -202,7 +203,7 @@ def test_free_space_the_tasks_can_reach_is_refused_even_outside_the_boot_critica
     stock = b"\xff" * 0x1000
     out = b"\xff" * 0x800 + b"\x00" * 32 + b"\xff" * 0x7E0
     validate.check_main_image(stock, out,
-                              patch_main.MAIN_PROFILE, {"modx": [(0x800, 32, "free")]}, rep)
+                              nxs2.MAIN_PROFILE, {"modx": [(0x800, 32, "free")]}, rep)
     assert any(state == "FAIL" and "entered by code the tasks reach" in text for state, text in rep.lines)
 
 
@@ -243,7 +244,7 @@ def test_every_nxs2_mod_passes_the_validator(patched_nxs2):
 def test_the_nxs2_free_range_is_proven_free_where_the_routines_sit(patched_nxs2):
     stock = open(REAL_NXS2, "rb").read()
     fw = modelfw.load("cdj2000nxs2")
-    image = sigpatch.Image(patch_main.MAIN_PROFILE, validate_image(stock, fw))
+    image = sigpatch.Image(nxs2.MAIN_PROFILE, validate_image(stock, fw))
     run = sigpatch.largest_erased_run(image)
     assert sigpatch.unproven(image, run.start(), run.start() + 0x2D80) is None
 
@@ -342,7 +343,7 @@ def test_a_display_site_outside_the_known_renderer_sites_is_refused():
     out = bytearray(stock)
     out[0x300:0x304] = bytes([0, 9, 0, 9])
     rep = validate.Report()
-    validate.check_gui_image(bytes(stock), bytes(out), patch_gui.GUI_PROFILE, {"newmod": [(0x300, 4, "site")]}, rep)
+    validate.check_gui_image(bytes(stock), bytes(out), nxs2.GUI_PROFILE, {"newmod": [(0x300, 4, "site")]}, rep)
     assert any(state == "FAIL" and "not one of the known display sites" in text for state, text in rep.lines), rep.text()
 
 

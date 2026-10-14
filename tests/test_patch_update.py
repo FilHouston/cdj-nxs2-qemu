@@ -265,7 +265,8 @@ def test_a_mod_added_to_a_patched_image_lands_where_patching_both_puts_it(tmp_pa
 def test_patch_gui_list_still_prints_name_then_description():
     r = run_script("mods/patch_gui.py", "--list")
     assert r.returncode == 0, r.stderr
-    assert r.stdout.split()[0] == "wave3"
+    name, what = r.stdout.splitlines()[0].split(None, 1)
+    assert what == patch_gui.MODS[name].what
 
 
 # -- patch_update.py: the container-level tool -----------------------------------
@@ -283,12 +284,11 @@ def build_upd(*sections):
 def test_registry_only_lists_firmware_patchable_mods():
     reg = patch_update.registry("cdj2000nxs2")
     assert set(reg) == set(patch_gui.MODS) | set(patch_main.MODS)
-    # the emulator-only knobs from mods.conf must never appear here
-    conf = open(path("mods", "mods.conf"), encoding="utf-8").read()
-    knob_names = re.findall(r"^(\w+)\|", conf, re.M)
+    # the emulator-only knobs must never appear here
     assert "high_fps" not in reg and "live_clock" not in reg
     assert "three_band" not in reg          # that row's key, not the mod names
-    assert knob_names == ["high_fps", "live_clock", "three_band", "phrase", "osc", "usb_midi", "ableton_link", "tcnet", "track_filter"]
+    assert list(patch_update.conf_rows()) == ["high_fps", "live_clock", "ableton_link", "osc", "phrase",
+                                              "tcnet", "three_band", "track_filter", "usb_midi"]
 
 
 def test_list_cli_shows_target_and_versions():

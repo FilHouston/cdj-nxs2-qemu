@@ -308,6 +308,39 @@ CDJ-900NXS only `U` (USB), `Enter` (the select knob's push) and `Space`
 `D`; `U` and four `Enter`s load the first track. `C` (CUE) and `Esc` (BACK)
 are mapped, but the emulated CDJ-900 does not react to them yet.
 
+### Another firmware version, or a modded update
+
+Setup refuses an update file that is not the version in the tables above. To try
+another version, or an update that was already modded, add `--any-firmware`:
+
+```sh
+./setup.sh --firmware path/to/C2KNXS2.UPD --any-firmware
+```
+
+This is **unsupported**: setup unpacks the file anyway (a file it cannot unpack
+still fails) and prints which image differed; `./start.sh` sees the same from
+the installed images, says so and lists what it left out. Whether the player boots depends on
+how far the firmware moved from the supported one: on the CDJ-2000NXS2, 1.85
+loads a track, while 1.83 boots to the player screen but did not load one.
+
+What the emulator pokes into the firmware is looked up in the installed MAIN
+image by the instructions around each place, not by address, so it follows the
+firmware when it moves: the load poke, the Pro DJ Link start call, the
+firmware's own MAC, the colour capability byte, the deck-ready word that the
+auto-load waits for, and the place the RTOS keeps its status register (seeded
+at power-on). The mods find their sites the same way. A site that is not found
+exactly once is not guessed: the poke that needs it is left out and the list at
+start names it.
+
+Some things have no way to be looked up and are switched off for any other
+firmware, and the start-up list says so: the log and trace taps and the play-key
+holds of the lab runs, the native `memcmp`/`strlen`/`memcpy` speed-ups (the
+machine runs the firmware's own code, which is slower), the display board's
+idle-loop halt when the display firmware differs, and on the older players
+the DSP idle-loop skip and the status-register seed (and the DSP module is not
+built). The DSP module of the CDJ-2000NXS2 is built from the installed
+firmware itself, so it follows.
+
 <a id="keyboard"></a>
 
 ## Keyboard
@@ -543,9 +576,10 @@ Toggle*, then press `LINK` in the transport. With the mod on, the toggle shows
 
 ## Mods
 
-Small on/off tweaks to how the deck behaves, each with its own default,
-listed in `mods/mods.conf`. Setup and start offer a player only the mods its
-row lists under `models` (`track_filter` is for the XDJ-700, the others for the CDJ-2000NXS2):
+Small on/off tweaks to how the deck behaves, each with its own default and a
+folder of its own under `mods/` (see [adding a mod](#adding-a-mod)). Setup and
+start offer a player only the mods whose `mod.conf` lists it under `MOD_MODELS`
+(`track_filter` is for the XDJ-700, the others for the CDJ-2000NXS2):
 
 | mod | what it does | default |
 |---|---|---|
@@ -600,7 +634,7 @@ mismatched version is refused unless you pass `--force-version`.
 
 **Combining mods.** Name as many as you like in one command, e.g.
 `python mods/patch_update.py C2KNXS2.UPD out.UPD three_band osc ableton_link`.
-Each name brings every patch its row in `mods/mods.conf` needs. All routines
+Each name brings every patch its `mod.conf` switches on. All routines
 of one image are placed in a single pass into one free area, so they cannot
 overlap, and mods that hook the same spot in the firmware share it: the spot
 is replaced once by a stub that runs the original code and then each mod in
@@ -652,6 +686,38 @@ unit are the ones in the file, whether the updater takes an update of equal
 version, and the display image's boot path (no call graph). Nothing here boots
 the file. A pass does not replace testing on a real deck, with a way back
 (the official file and service mode) at hand.
+
+<a id="adding-a-mod"></a>
+
+### Adding a mod
+
+Everything about one mod sits in its own folder, with a folder per player it
+patches:
+
+```
+mods/track_filter/
+  mod.conf                  its row: knobs, on/off values, default, players, description
+  README.md                 its page
+  xdj700/
+    patch.py                where each routine hooks the firmware and what it imports
+    main_trackfilter.s      a MAIN routine (gui_<name>.s for the display)
+    main_trackfilter.bin    the same, assembled (patch_main.py --assemble)
+```
+
+The tools find mods by these folders: setup reads every `mod.conf`, and
+`patch_main.py`, `patch_gui.py`, `patch_update.py` and the validator read every
+`<player>/patch.py`. A `patch.py` holds a `MODS` dict, one `sigpatch.Mod` per
+routine, keyed by the routine's name, whose knob is `CDJ_MAIN_<NAME>` or
+`CDJ_GUI_<NAME>` (list them all in `MOD_ENV`, joined by `+`). What a mod finds
+in the firmware by signature and needs only for itself stays in its own
+`patch.py`. What several mods of one player share lives in
+`mods/players/<player>.py`, where each mod imports it from: the image profile,
+a hook site two mods sit on (both are then called from one stub at that site),
+and an address more than one mod imports (`malloc`, `free`, the tick word, the
+UDP send wrapper, ...). Words a mod's routines hand each other at the end of
+the free space (`FreeEnd`) belong to that mod; no two mods may take the same
+bytes, which the tests check. An emulator-only knob (`high_fps`) has just its
+`mod.conf` and page.
 
 <a id="service-mode"></a>
 
@@ -859,7 +925,7 @@ so it takes as long as `decks2`; after that a deck takes a minute and a half.
 | `hw/cdj/boards/cdj2000/` | the CDJ-2000 and CDJ-2000NXS: MAIN board (Renesas SH7763), Blackfin display and C6727 / C6747 DSP models, experimental |
 | `hw/cdj/boards/cdj900/` and `hw/cdj/m16c/` | the CDJ-900: the CDJ-2000's MAIN board with its M16C display micro (core, SoC and the display model), experimental |
 | `hw/cdj/boards/xdj1000/` | the XDJ-700, XDJ-1000 and CDJ-900NXS: their SH7724 MAIN board with its LCD controller and graphics blocks, experimental |
-| `mods/` | the [mods](#mods) registry and the display- and MAIN-firmware patches behind them |
+| `mods/` | the [mods](#mods), one folder each, and the tools that patch them into the display and MAIN firmware |
 | `models/` | one profile per player, read by the firmware and launch scripts (see `models/README.md`) |
 | `hw/cdj/c6x/` | the C66x DSP core, its SoC peripherals, the JIT generator (`tools/`) and unit tests |
 | `patches/` | the changes to QEMU 9.1.0 itself |

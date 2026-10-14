@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 
-from . import chain, host, snapshot
+from . import chain, host, sites, snapshot
 from . import model as cdj_model
 from .chain import export_default, ifset, nonempty
 from .layout import Layout
@@ -108,17 +108,21 @@ class Deck:
         # (default: the deck number), OWNMAC=0 leaves it; with CDJ_ETHER_MAC
         # set and OWNMAC unset the whole address is held to the wire MAC. Only
         # non-zero bytes and byte 5 are poked: CDJ_MPOKE has 8 slots.
+        own_mac = None
         if env.get("CDJ_NETDEV") and nonempty(env, "OWNMAC", n) != "0":
+            own_mac = sites.find(lay, profile).get("own_mac")
+        if own_mac is not None:
             if not env.get("OWNMAC") and env.get("CDJ_ETHER_MAC"):
                 for i, b in enumerate(env["CDJ_ETHER_MAC"].split(":")):
                     if i == 5 or int(b, 16) != 0:
-                        _append_mpoke(env, "0x%08X:0x%s:1" % (0x0A35F754 + i, b))
-                self.notes.append((1, "[%s] own MAC 0x0A35F754 held to the wire address %s (OWNMAC=0 to leave it)"
-                                   % (tag, env["CDJ_ETHER_MAC"])))
+                        _append_mpoke(env, "0x%08X:0x%s:1" % (own_mac + i, b))
+                self.notes.append((1, "[%s] own MAC 0x%08X held to the wire address %s (OWNMAC=0 to leave it)"
+                                   % (tag, own_mac, env["CDJ_ETHER_MAC"])))
             else:
                 om = nonempty(env, "OWNMAC", n)
-                _append_mpoke(env, "0x0A35F759:%s:1" % om)
-                self.notes.append((1, "[%s] own MAC byte 0x0A35F759 held at %s (OWNMAC=0 to leave it)" % (tag, om)))
+                _append_mpoke(env, "0x%08X:%s:1" % (own_mac + 5, om))
+                self.notes.append((1, "[%s] own MAC byte 0x%08X held at %s (OWNMAC=0 to leave it)"
+                                   % (tag, own_mac + 5, om)))
         if env.get("CDJ_AUDIODEV"):
             env["CDJ_AUDIODEV"] = env["CDJ_AUDIODEV"].replace("%TAG%", tag)
 

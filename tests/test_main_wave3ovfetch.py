@@ -14,6 +14,7 @@ import pytest
 
 import patch_main
 import sigpatch
+from players import cdj2000nxs2 as nxs2
 from test_main_wave3data import FirmwareSh4, put_record
 from helpers import stock_mods
 
@@ -32,7 +33,7 @@ SENTINELS = {8: 1200, 9: 0xC0DE0009, 10: 0xFFE7FFFF, 11: 0xC0DE000B, 12: 0xC0DE0
 
 def build_image():
     d = bytearray(0x10000)
-    for k, op in enumerate(patch_main.PREVIEW_READ['sig']):
+    for k, op in enumerate(nxs2.PREVIEW_READ['sig']):
         struct.pack_into('<H', d, SIG_AT + 2 * k, op)
     d[CAVE[0]:CAVE[1]] = b'\xff' * (CAVE[1] - CAVE[0])
     profile = sigpatch.ImageProfile(flash_base=0, loadtab_off=0, loadtab_n=0,
@@ -118,7 +119,7 @@ def expected_overview(raw):
 def test_registered_for_main_as_a_hook_on_the_preview_reader():
     mod = patch_main.MODS['wave3ovfetch']
     assert mod.target == 'main' and mod.hook and not mod.literal
-    assert dict(sig=mod.sig, start=mod.start, end=mod.end) == patch_main.PREVIEW_READ
+    assert dict(sig=mod.sig, start=mod.start, end=mod.end) == nxs2.PREVIEW_READ
 
 
 REAL_MAIN = os.path.join(os.path.dirname(__file__), '..', '..', 'extract', 'main_unpacked.bin')
@@ -128,7 +129,7 @@ REAL_MAIN = os.path.join(os.path.dirname(__file__), '..', '..', 'extract', 'main
 def test_real_main_has_the_signature_once_and_takes_every_3band_mod_in_any_order():
     with open(REAL_MAIN, 'rb') as f:
         data = f.read()
-    img = sigpatch.Image(patch_main.MAIN_PROFILE, data)
+    img = sigpatch.Image(nxs2.MAIN_PROFILE, data)
     mod = patch_main.MODS['wave3ovfetch']
     assert img.addr_of(sigpatch.find_sig(img, mod) + 2 * mod.start) == 0x08289C54
     names = ['wave3data', 'wave3detail', 'wave3ovdata', 'wave3ovfetch']

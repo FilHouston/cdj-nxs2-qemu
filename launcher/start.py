@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 
-from . import chain, conf, deck, host, model, mods
+from . import chain, conf, deck, firmware, host, model, mods, sites
 from .chain import nonempty, say
 from .console import stdin_is_tty
 from .layout import Layout
@@ -137,6 +137,12 @@ def main(argv):
     except model.ModelError as e:
         chain.err(str(e))
         return 2
+    differ = firmware.differing_images(model.extract_dir(lay, player), player)
+    off = sites.find(lay, player).switched_off(player)
+    if differ or off:
+        chain.warn_banner("The installed firmware is not the supported update (unsupported, may not boot):",
+                          *(["Not the v%s images: %s" % (player.fw_version, " ".join(differ))] if differ else []),
+                          *(["Switched off for it:"] + ["  - " + line for line in off] if off else []))
     if not player.is_rig:
         return _start_deck(lay, player, c, dry)
     if app is None:
@@ -149,7 +155,7 @@ def main(argv):
     env["SERVICE"] = "1" if service else "0"
     # mods.apply applies every mod's own cdj.conf choice (high_fps,
     # live_clock, ...) unless the caller's own environment already set that
-    # knob. SERVICE MODE is not a mod (see above): it stays out of mods.conf.
+    # knob. SERVICE MODE is not a mod (see above): it has no folder in mods/.
     mods.apply(mods.load(lay, player.id), c, env)
     for k in ("QEMU_BUILD", "QEMU_EB_BUILD"):
         if c[k]:

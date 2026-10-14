@@ -4,6 +4,7 @@ mods, the patch engine takes an image as it comes (stock, already carrying
 our mods, or edited by someone else), finds its free space and the firmware
 addresses a routine needs by searching the image, and the NXS2's patched
 images and .UPD stay byte for byte what they were before models existed."""
+import glob
 import hashlib
 import os
 import struct
@@ -19,6 +20,7 @@ import patch_gui
 import patch_main
 import patch_update
 import sigpatch
+from players import cdj2000nxs2 as nxs2
 from helpers import path, run_script
 from test_mod_hooks import HOOKS, MODS as HOOK_MODS, build_image as build_hook_image
 from test_patch_update import (build_two_mod_image, build_upd, fake_section, FakeTarget,
@@ -116,10 +118,36 @@ def test_a_container_given_for_a_one_file_per_section_player_is_refused(tmp_path
     assert r.returncode != 0
 
 
-def test_routines_of_another_model_live_in_their_own_folder():
+def test_every_routine_lives_in_its_players_folder():
     nxs2 = modelfw.routine_source("main", "osc", "cdj2000nxs2")
-    assert os.path.dirname(os.path.dirname(nxs2)) == os.path.join(EMU, "mods")
-    assert os.path.basename(os.path.dirname(nxs2)) == "osc"
+    assert nxs2 == os.path.join(EMU, "mods", "osc", "cdj2000nxs2", "main_osc.s")
+    xdj = modelfw.routine_source("main", "trackfilter", "xdj700")
+    assert xdj == os.path.join(EMU, "mods", "track_filter", "xdj700", "main_trackfilter.s")
+
+
+def declarations():
+    """(folder, its patch.py) for every mods/<mod>/<model>/ that patches something."""
+    for patch in sorted(glob.glob(os.path.join(EMU, "mods", "*", "*", "patch.py"))):
+        folder = os.path.dirname(patch)
+        yield folder, modelfw.mod_patch(os.path.basename(os.path.dirname(folder)), os.path.basename(folder))
+
+
+def test_a_mod_folder_holds_every_routine_it_declares():
+    for folder, decl in declarations():
+        for name, mod in decl.MODS.items():
+            for ext in (".s", ".bin"):
+                assert os.path.isfile(os.path.join(folder, "%s_%s%s" % (mod.target, name, ext))), (folder, name)
+
+
+def test_no_two_mods_hand_words_over_in_the_same_bytes():
+    owner = {}
+    for folder, decl in declarations():
+        model = os.path.basename(folder)
+        for mod in decl.MODS.values():
+            for _, source in mod.imports:
+                if isinstance(source, sigpatch.FreeEnd):
+                    for b in range(source.delta, source.delta + 4):
+                        assert owner.setdefault((model, b), folder) == folder, (folder, source)
 
 
 def test_a_model_with_no_patch_set_gets_its_image_back_and_a_reason():
@@ -179,8 +207,8 @@ def test_the_nxs2_images_patch_to_the_same_bytes_as_before(image, tool, names, d
 @needs_real
 def test_the_dynamic_free_space_is_where_the_nxs2_profile_puts_it():
     with open(REAL["main_unpacked.bin"], "rb") as f:
-        img = sigpatch.Image(patch_main.MAIN_PROFILE, f.read())
-    dynamic = patch_main.MAIN_PROFILE._replace(ram_base=None, ram_end=None)
+        img = sigpatch.Image(nxs2.MAIN_PROFILE, f.read())
+    dynamic = nxs2.MAIN_PROFILE._replace(ram_base=None, ram_end=None)
     size = 11648
     assert (sigpatch.place_inplace(img, size)
             == sigpatch.place_inplace(sigpatch.Image(dynamic, img.d), size))
@@ -446,6 +474,7 @@ def test_the_xdj700_track_filter_takes_the_shell_room_and_is_left_as_it_is_when_
     report = {}
     once = patch_main.patch(stock, ["trackfilter"], "xdj700", report)
     assert report["trackfilter"][0] == "applied"
+    assert hashlib.sha256(once).hexdigest() == "856d2f508b9055fd2e471237a445bc4278cfc9418a8aed22646c6f3ae9d0b14d"
     shell = slice(0x08B4B67E - 0x08000000, 0x08B4BB0E - 0x08000000)
     assert once[shell] != stock[shell]
     assert patch_main.patch(once, ["trackfilter"], "xdj700") == once

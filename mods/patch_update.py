@@ -14,9 +14,10 @@ MAIN file (C2KMAIN.UPD, C900MAIN.UPD), which is one section with no manifest
 before it. The other three files are never patched: they are checked against
 the shipped ones and copied next to the output.
 
-A mod is named as in mods/mods.conf (three_band, osc, ableton_link, ...) and
-brings every patch that row switches on; --list shows them. A single patch
-(patch_gui.py --list, patch_main.py --list) can still be named on its own.
+A mod is named by its folder, mods/<mod>/ (three_band, osc, ableton_link,
+...), and brings every patch its mod.conf switches on; --list shows them. A
+single patch (patch_gui.py --list, patch_main.py --list) can still be named on
+its own.
 With no mod named, every section is copied through untouched -- a repack
 that reproduces the input byte for byte, useful for proving the container
 handling itself is not what changed.
@@ -32,7 +33,7 @@ Every mod here also has a --list entry in patch_gui.py or patch_main.py,
 since that is the tool that actually knows how to splice it into its image;
 this is the container-level wrapper around them. Only mods that patch real
 firmware code are offered -- an emulator-only knob such as high_fps or
-live_clock (emulator/mods/mods.conf) has nothing to write into a .UPD and
+live_clock (emulator/mods/<mod>/mod.conf) has nothing to write into a .UPD and
 does not appear here.
 
     1. Split the update into its sections (the same manifest split_update.py
@@ -78,6 +79,7 @@ import gui_encode
 import main_decode
 import main_encode
 import validate
+from launcher import layout, mods as mod_rows
 
 # target -> (decode(section, fw) -> (header, declared, avail, image),
 #            encode(section, image, fw) -> section, module owning mods_for()/patch())
@@ -103,17 +105,11 @@ def registry(model):
 
 
 def conf_rows():
-    """{mods.conf key: the registry names of its knobs}. A knob is named
-    CDJ_GUI_<NAME> or CDJ_MAIN_<NAME> after its patch_gui/patch_main entry, so
-    one row (three_band) stands for every patch it switches on."""
-    rows = {}
-    with open(os.path.join(HERE, 'mods.conf'), encoding='utf-8') as f:
-        for line in f:
-            if line.startswith('#') or '|' not in line:
-                continue
-            key, env = line.split('|')[:2]
-            rows[key] = [re.sub(r'^CDJ_(GUI|MAIN)_', '', knob).lower() for knob in env.split('+')]
-    return rows
+    """{mod: the registry names of its knobs}. A knob is named CDJ_GUI_<NAME>
+    or CDJ_MAIN_<NAME> after its patch_gui/patch_main entry, so one mod
+    (three_band) stands for every patch it switches on."""
+    return {row.key: [re.sub(r'^CDJ_(GUI|MAIN)_', '', knob).lower() for knob in row.env.split('+')]
+            for row in mod_rows.load(layout.Layout())}
 
 
 def section_version(header):

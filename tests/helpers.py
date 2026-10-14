@@ -46,6 +46,16 @@ def lift(rel, names, namespace=None):
     return ns
 
 
+def mod_row(key):
+    """The registry row of the mod in mods/<key>/, as the launcher reads it."""
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    from launcher import mods
+    from launcher.layout import Layout
+    (row,) = [m for m in mods.load(Layout()) if m.key == key]
+    return row
+
+
 def stock_mods(mods):
     """A registry as the routine tests need it: the routines keep the stock
     firmware addresses they were written with, because the synthetic image

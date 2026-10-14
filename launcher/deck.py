@@ -15,7 +15,7 @@ import os
 import shlex
 import subprocess
 
-from . import chain, dsp_module, host, model, mods, snapshot
+from . import chain, dsp_module, host, model, mods, sites, snapshot
 from .boot_deck import _monsock, window_display
 from .chain import nonempty, say, warn_banner
 from .layout import Layout
@@ -46,9 +46,11 @@ def dsp_env(lay, m, env):
     """The DSP knobs a model's profile sets: the busy-wait loop the core skips,
     the interrupt fast path, and the module built by build_dsp_module.sh (when its
     stamp fits) unless MODULE=none or C66X_JIT names one by hand."""
-    knobs = {m.dsp_idle_knob: nonempty(env, m.dsp_idle_knob, m.dsp_idle)}
-    if m.dsp_isr_fast:
-        knobs["C66X_IDLE_ISR_FAST"] = nonempty(env, "C66X_IDLE_ISR_FAST", m.dsp_isr_fast)
+    knobs = {}
+    if sites.find(lay, m).supported:
+        knobs[m.dsp_idle_knob] = nonempty(env, m.dsp_idle_knob, m.dsp_idle)
+        if m.dsp_isr_fast:
+            knobs["C66X_IDLE_ISR_FAST"] = nonempty(env, "C66X_IDLE_ISR_FAST", m.dsp_isr_fast)
     if env.get("C66X_JIT") or env.get("MODULE") == "none":
         return knobs
     module = dsp_module.check(lay, m)
@@ -87,6 +89,9 @@ def command(lay, m, env):
     folder = model.extract_dir(lay, m)
     env = dict(env)
     env["CDJ_ATA"] = "1"
+    if not sites.find(lay, m).supported:
+        # Where the firmware keeps the status register it restores is not known for this image.
+        env["CDJ_SR_SEED_SLOT"] = "0"
     if m.has_dsp_module:
         env.update(dsp_env(lay, m, env))
     if m.display_upd:
