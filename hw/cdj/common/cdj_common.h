@@ -118,6 +118,10 @@ void cdj_tmu_init(MemoryRegion *sysmem, hwaddr base,
                   qemu_irq ch0, qemu_irq ch1, qemu_irq ch2);
 void cdj_scif(MemoryRegion *sysmem, const char *id,
               hwaddr addr, Chardev *chr);
+/* As cdj_scif(), with the SCIF's RXI and TXI ORed onto one interrupt line
+ * (the SH7724 gives each SCIF a single INTEVT). */
+void cdj_scif_irq(MemoryRegion *sysmem, const char *id,
+                  hwaddr addr, Chardev *chr, qemu_irq irq);
 qemu_irq cdj_count_irq(qemu_irq target, const char *name);
 extern Notifier cdj_irqcount_exit;
 void cdj_irqcount_dump(Notifier *n, void *opaque);

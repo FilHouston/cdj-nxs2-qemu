@@ -184,6 +184,7 @@ typedef struct Sh7724Deck {
     bool lever_fwd;             /* idle frame reports the direction lever at FWD */
     bool touch_screen;          /* resistive panel digitised by the panel MCU */
     int auth_iic;               /* IIC channel of the auth chip, or -1 */
+    bool scif0_irq;             /* console on SCIF0 is interrupt driven */
 } Sh7724Deck;
 
 /*
@@ -272,8 +273,10 @@ static void sh7724_deck_init(MachineState *machine, const Sh7724Deck *deck)
                   CDJ_USB_SIZE,
                   (CdjDmacDei[]) { { dei[0] }, { dei[1] }, { dei[2] }, { dei[3] } });
 
-    cdj_scif(sysmem, "scif0", CDJ_SCIF0_ADDR,
-             serial_hd(0) ?: qemu_chr_new("scif0-null", "null", NULL));
+    cdj_scif_irq(sysmem, "scif0", CDJ_SCIF0_ADDR,
+                 serial_hd(0) ?: qemu_chr_new("scif0-null", "null", NULL),
+                 deck->scif0_irq ? cdj_count_irq(cdj_intc.irqs[CDJ_SCIF0],
+                                                 "SCIF0") : NULL);
     cdj_scif(sysmem, "scif1", CDJ_SCIF1_ADDR,
              serial_hd(1) ?: qemu_chr_new("scif1-null", "null", NULL));
     if (deck->auth_iic >= 0) {
@@ -334,6 +337,7 @@ static const Sh7724Deck cdj900nxs_deck = {
     .usb_irq = CDJ_USB0,
     .pnl_frame = 24,
     .auth_iic = 0,
+    .scif0_irq = true,
 };
 
 static const Sh7724Deck xdj700_deck = {
