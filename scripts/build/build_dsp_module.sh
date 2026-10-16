@@ -48,7 +48,7 @@ export CDJ_MODEL="$MODEL_ID"
 IDLE_SPEC="${MODEL_DSP_IDLE:-}"
 IDLE_HEAD="${IDLE_SPEC%%:*}"; IDLE_HEAD="${IDLE_HEAD:-0x80076F00}"
 # A one-window deck's machine profiles differently from the rig's;
-# a rig player with its own DSP program (the CDJ-TOUR1) names the main loop it
+# a rig player with its own DSP program names the main loop it
 # skips in the same field and is built the way the default player is.
 OLDER=0; [ -z "$IDLE_SPEC" ] || [ "${MODEL_LAUNCH:-rig}" = rig ] || OLDER=1
 WORK="${WORK:-$CDJ_ROOT/extract/dsp-module${CURATED#curated}}"

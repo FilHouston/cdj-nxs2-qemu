@@ -171,6 +171,7 @@ c66x_core *c66x_new(const c66x_bus *bus)
     }
     c66x_reset(c, 0);
     jit_init(c);
+    native_init(c);
     /* C66X_IDLE_ISR_FAST=1: handlers keep the fast store paths while the
      * busy-wait skip is armed (idle_page_stored). */
     const char *isrf = getenv("C66X_IDLE_ISR_FAST");
@@ -184,6 +185,7 @@ void c66x_free(c66x_core *c)
         return;
     c66x_record_close(c);
     jit_free(c);
+    native_free(c);
     kstats_dump_fwd();
 #ifdef C66X_HCOUNT
     fprintf(stderr, "paths: fast-packet %llu nop-run %llu spl-fast %llu general %llu | general with "

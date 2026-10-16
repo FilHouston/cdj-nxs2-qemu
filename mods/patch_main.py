@@ -83,7 +83,7 @@ def patch_flash(flash, names, model=modelfw.DEFAULT_MODEL, report=None):
     """Patch the packed MAIN application directly inside a flat flash image
     (flash.bin's own bytes, not the unpacked one -kernel loads)."""
     off = modelfw.load(model).main_off
-    window_end = modelfw.UPDATE_WINDOW_END.get(model)
+    window_end = modelfw.update_window_end(model)
     if window_end is None:
         raise SystemExit('patch_main: the update window of %s is not known' % model)
     _, image = main_decode.decode_image(flash, off)

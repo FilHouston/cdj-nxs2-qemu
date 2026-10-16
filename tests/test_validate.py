@@ -21,11 +21,9 @@ from players import cdj2000nxs2 as nxs2
 from helpers import path, run_script
 
 REAL_NXS2 = path("..", "fw", "unzipped", "C2KNXS2.UPD")
-REAL_TOUR1 = path("..", "fw", "crossmodel", "CDJTOUR1_v158", "CDJTOUR1.UPD")
 needs_nxs2 = pytest.mark.skipif(not os.path.exists(REAL_NXS2), reason="fw/unzipped/C2KNXS2.UPD not present")
 REAL_NXS_MAIN = path("..", "extract", "cdj2000nxs", "main_unpacked.bin")
 needs_nxs_main = pytest.mark.skipif(not os.path.exists(REAL_NXS_MAIN), reason="extract/cdj2000nxs not present")
-needs_tour1 = pytest.mark.skipif(not os.path.exists(REAL_TOUR1), reason="CDJTOUR1.UPD not present")
 REAL_XDJ700 = path("..", "fw", "crossmodel", "XDJ700_v115", "XDJ700.UPD")
 needs_xdj700 = pytest.mark.skipif(not os.path.exists(REAL_XDJ700), reason="XDJ700.UPD 1.15 not present")
 
@@ -318,7 +316,7 @@ def main_sections(shrink_stock):
 
 @needs_nxs2
 def test_a_player_without_a_known_window_may_not_grow_its_packed_main(monkeypatch):
-    monkeypatch.delitem(modelfw.UPDATE_WINDOW_END, "cdj2000nxs2")
+    monkeypatch.setattr(modelfw, "update_window_end", lambda model: None)
     fw, stock, out = main_sections(shrink_stock=True)
     rep = validate.Report()
     validate.check_srec_section(2, stock, out, fw, "cdj2000nxs2", rep)
@@ -332,7 +330,7 @@ def test_a_player_without_a_known_window_may_not_grow_its_packed_main(monkeypatc
 @needs_nxs2
 def test_a_packed_main_past_the_known_window_is_caught(monkeypatch):
     fw, stock, out = main_sections(shrink_stock=False)
-    monkeypatch.setitem(modelfw.UPDATE_WINDOW_END, "cdj2000nxs2", 0x3B9000)
+    monkeypatch.setattr(modelfw, "update_window_end", lambda model: 0x3B9000)
     rep = validate.Report()
     validate.check_srec_section(2, stock, out, fw, "cdj2000nxs2", rep)
     assert any(state == "FAIL" and "past the update window" in text for state, text in rep.lines), rep.text()
@@ -358,29 +356,7 @@ def test_a_stock_main_with_a_wrong_crc_trailer_is_refused():
 
 def test_every_player_with_mods_has_a_known_update_window():
     for model in patch_main.PATCH_SETS:
-        assert model in modelfw.UPDATE_WINDOW_END
-
-
-@needs_tour1
-def test_the_tour1_tablet_trailer_survives_a_repack(tmp_path):
-    out = tmp_path / "out.UPD"
-    r = run_script("mods/patch_update.py", "--model", "cdjtour1", REAL_TOUR1, out)
-    assert r.returncode == 0, r.stdout[-2000:] + r.stderr
-    stock = open(REAL_TOUR1, "rb").read()
-    assert out.read_bytes() == stock
-    rep = verify(stock, out.read_bytes(), "cdjtour1")
-    assert not rep.failed, rep.text()
-    assert "bytes after the last section identical" in rep.text()
-
-
-@needs_tour1
-def test_a_tour1_output_without_its_trailer_is_refused():
-    stock = open(REAL_TOUR1, "rb").read()
-    fw = modelfw.load("cdjtour1")
-    u = validate.Upd(stock, fw)
-    assert len(u.trailer) > 30_000_000
-    rep = verify(stock, stock[:len(stock) - len(u.trailer)], "cdjtour1")
-    assert any(state == "FAIL" and "after the last section" in text for state, text in rep.lines)
+        assert modelfw.update_window_end(model)
 
 
 @needs_nxs2

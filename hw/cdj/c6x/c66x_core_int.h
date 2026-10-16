@@ -268,6 +268,12 @@ struct c66x_core {
     /* One bit per word offset within its mapping, modulo the filter size:
      * clear means no kept word of any mapping lives there. */
     uint32_t idle_rs_bloom[IDLE_RS_BLOOM / 32];
+    /* native kernels (c66x_native.c) */
+    uint8_t  native_mode;           /* C66X_NATIVE: 0 off, 1 on, 2 check against the interpreter */
+    uint32_t native_ok;             /* kernels whose code bytes matched ... */
+    uint64_t native_gen;            /* ... at this code_gen + 1 */
+    uint64_t native_entries, native_cycles;
+    struct native_check *native_chk;
 };
 
 /* ------------------------------------------------------------------------ */

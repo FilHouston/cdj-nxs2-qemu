@@ -77,6 +77,7 @@ class Model:
         self.main_section = values["MODEL_MAIN_SECTION"]
         self.gui_section = values.get("MODEL_GUI_SECTION") or "1"
         self.main_lzss = values["MODEL_MAIN_LZSS"]
+        self.update_window_end = int(values["MODEL_UPDATE_WINDOW_END"], 0) if values.get("MODEL_UPDATE_WINDOW_END") else None
         self.fw_steps = values["MODEL_FW_STEPS"].split()
         self.display_upd = values.get("MODEL_DISPLAY_UPD", "")
         self.display_flash = values.get("MODEL_DISPLAY_FLASH", "")

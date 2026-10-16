@@ -45,10 +45,6 @@ def test_the_nxs2_is_offered_every_mod_that_lists_it():
                                    if "cdj2000nxs2" in m.models.split(",")]
 
 
-def test_the_tour1_is_offered_no_mod_until_it_is_published():
-    assert keys("cdjtour1") == []
-
-
 @pytest.mark.parametrize("model_id", ["cdj2000", "cdj2000nxs", "cdj900", "cdj900nxs",
                                       "xdj1000", "xdj1000mk2"])
 def test_an_older_player_is_offered_no_mod_until_it_has_a_patch(model_id):

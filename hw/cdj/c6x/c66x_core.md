@@ -210,3 +210,21 @@ contention, not the core.
 - FAUCR sticky flags are not maintained.
 - AMR circular addressing is not implemented.
 - Exceptions (EFR/IERR) stop the step loop instead of vectoring.
+
+## Native kernels
+- `c66x_native.c` runs whole passes of a hot, pure loop (RAM and registers
+  only) as native C from its loop head: every register, control register,
+  store, cycle and counter a pass leaves is the interpreter's own. First one:
+  the NXS2 polyphase FIR at 0x800169AC (131 cycles a pass on its dot-product
+  path, 111 on its SPLOOP path).
+- A pass runs natively only when it ends inside the current `c66x_step`
+  budget and starts with nothing in flight and no deliverable interrupt.
+  Interrupts arrive only between steps, so such a pass cannot have been
+  interrupted; the pass that crosses the step end is interpreted.
+- The code bytes are checked by hash once per `code_gen`. A compiled region
+  rooted at the loop head runs instead of the native form, so a DSP module
+  keeps its own speed on that kernel.
+- `C66X_NATIVE=0` turns it off; `C66X_NATIVE=check` predicts every pass and
+  compares it with the interpreter's. Both NXS2 play recordings replay
+  bit-exact with it on; play-phase speed on normal play goes from 43.7 to
+  65.4 M cycles/s.

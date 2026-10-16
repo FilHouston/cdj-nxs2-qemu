@@ -45,7 +45,6 @@ def container(*labels):
 @pytest.mark.parametrize("labels, want", [
     (["XDJ-700     MAINVer1.15", "XDJ-700     PANLVer1.00"], ("xdj700", "MAIN", "1.15")),
     (["CDJ-2000NXS2GUI Ver1.81", "CDJ-2000NXS2MAINVer1.87", "CDJ-2000NXS2PANLVer1.00"], ("cdj2000nxs2", "MAIN", "1.87")),
-    (["CDJ-2000NXS2GUI Ver1.81", "CDJ-TOUR1   MAINVer1.58"], ("cdjtour1", "MAIN", "1.58")),
     (["CDJ-2000NXS GUI Ver1.200", "CDJ-2000NXS MAINVer1.44"], ("cdj2000nxs", "MAIN", "1.44")),
     (["XDJ-1000MK2 MAINVer1.45"], ("xdj1000mk2", "MAIN", "1.45")),
     (["XDJ-1000    MAINVer1.13"], ("xdj1000", "MAIN", "1.13")),

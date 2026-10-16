@@ -345,7 +345,7 @@ def check_srec_section(i, stock_sec, out_sec, fw, model, rep):
     if not 0 <= tail < 32 or o_run[6 + length:] != b'\xff' * tail:
         rep.fail('%s: %d bytes after the stored sum are not record padding' % (name, tail))
     end = off + len(o_run)
-    window_end = modelfw.UPDATE_WINDOW_END.get(model)
+    window_end = modelfw.update_window_end(model)
     what = 'the update window'
     if window_end is None and s_run is not None:
         window_end = off + len(s_run)
@@ -736,10 +736,9 @@ def verify(stock_data, out_data, model, targets=None, spans=None, profiles=None)
 
 LABEL = re.compile(r'(.+?)\s*(MAIN|GUI|DRIV|PANL)\s*Ver(\d+\.\d+)')
 
-# The product part of a section label, as the updater of each player writes it.
-PLAYERS = {'CDJ-2000NXS2': 'cdj2000nxs2', 'CDJ-TOUR1': 'cdjtour1', 'CDJ-2000NXS': 'cdj2000nxs',
-           'XDJ-700': 'xdj700', 'XDJ-1000MK2': 'xdj1000mk2', 'XDJ-1000': 'xdj1000',
-           'CDJ-900NXS': 'cdj900nxs', 'CDJ-2000': 'cdj2000', 'CDJ-900': 'cdj900'}
+# The product part of a section label, as the updater of each player writes it:
+# the title of its profile.
+PLAYERS = {modelfw.cdj_model.load(m).title: m for m in modelfw.cdj_model.list_models()}
 
 
 def label_version(label):

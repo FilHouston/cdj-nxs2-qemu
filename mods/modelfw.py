@@ -25,23 +25,17 @@ SH7763_MAIN_BASE = 0x04000000
 MAIN_BASE = 0x08000000
 SH7763_MODELS = ('cdj2000nxs', 'cdj2000', 'cdj900')
 
-# Where the updater of each player stops erasing and programming the MAIN
-# region of a public update (label byte 31 = 0). Each end is the first sector
-# the updater's erase routine does not reach: it loops over a table of sector
-# offsets in the flash driver, starting at the entry of the packed image
-# (main_lzss - 4), for a fixed count, and the count is a "mov #n" in front of
-# the table pointer. 64 KiB sectors, except the XDJ-1000 and MK2 (128 KiB):
-#   cdj2000nxs2, cdjtour1   0x50000 + 121 * 0x10000
-#   xdj700, cdj900nxs       0x40000 + 122 * 0x10000
-#   xdj1000, xdj1000mk2     0x40000 + 118 * 0x20000
-#   cdj2000nxs, cdj2000, cdj900   0x40000 + 58 * 0x10000
-# A player missing here has not been read.
-UPDATE_WINDOW_END = {
-    'cdj2000nxs2': 0x7E0000, 'cdjtour1': 0x7E0000,
-    'xdj700': 0x7E0000, 'cdj900nxs': 0x7E0000,
-    'xdj1000': 0xF00000, 'xdj1000mk2': 0xF00000,
-    'cdj2000nxs': 0x3E0000, 'cdj2000': 0x3E0000, 'cdj900': 0x3E0000,
-}
+
+def update_window_end(model):
+    """Where the updater of `model` stops erasing and programming the MAIN
+    region of a public update (label byte 31 = 0), from its profile; None while
+    the updater has not been read. The end is the first sector the updater's
+    erase routine does not reach: it loops over a table of sector offsets in
+    the flash driver, starting at the entry of the packed image (main_lzss - 4),
+    for a fixed count, and the count is a "mov #n" in front of the table
+    pointer. The sectors are 64 KiB, except 128 KiB on the XDJ-1000 and MK2."""
+    return cdj_model.load(model).update_window_end
+
 
 Firmware = collections.namedtuple('Firmware', 'sections main_off bare', defaults=(False,))
 

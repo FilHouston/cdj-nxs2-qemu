@@ -224,6 +224,26 @@ def test_deck_dsp_env_comes_from_the_profile(tree, tmp_path):
     assert deck.dsp_env(lay, m, {"C66X_IDLE_ISR_FAST": "0"})["C66X_IDLE_ISR_FAST"] == "0"
 
 
+RIGS_WITH_OWN_DSP = [mid for mid in model.list_models()
+                     if model.load(mid).is_rig and model.load(mid).dsp_idle]
+
+
+@pytest.mark.parametrize("model_id", RIGS_WITH_OWN_DSP)
+def test_a_rig_player_with_its_own_dsp_program_has_its_own_module(model_id, tree, tmp_path, monkeypatch):
+    monkeypatch.setattr(rig, "Layout", lambda: tree)
+    own = model.load(model_id)
+    assert not own.has_dsp_module
+    _install(tree, own)
+    _install(tree, model.load())
+    (tmp_path / "c14gen" / "g23n").mkdir()
+    (tmp_path / "c14gen" / "g23n" / "m.so").write_bytes(b"")
+    assert rig.jit_module({}, own).replace("\\", "/").endswith("curated-%s/m.so" % model_id)
+    assert rig.jit_module({}, model.load()).replace("\\", "/").endswith("c14gen/curated/m.so")
+    assert rig.jit_module({"MODULE": "none"}, own) == ""
+    os.remove(tmp_path / "c14gen" / ("curated-" + model_id) / "m.so")
+    assert rig.jit_module({}, own) == ""
+
+
 def _step_dsp(tmp_path, model_id, **opts):
     s = _setup(tmp_path, **opts)
     s.model = model.load(model_id)
@@ -232,15 +252,16 @@ def _step_dsp(tmp_path, model_id, **opts):
     return s
 
 
-def test_setup_keeps_a_module_that_fits_the_current_code(tmp_path, capsys):
-    s = _step_dsp(tmp_path, "cdj2000nxs2")
+@pytest.mark.parametrize("model_id", RIGS_WITH_OWN_DSP)
+def test_setup_keeps_a_module_that_fits_the_current_code(model_id, tmp_path, capsys):
+    s = _step_dsp(tmp_path, model_id)
     _install(s.lay, s.model)
     s.step_dsp()
     assert "built from this code" in capsys.readouterr().out
 
 
 def test_every_rig_player_and_every_player_with_a_dsp_profile_builds_a_module():
-    assert model.load().builds_dsp_module
+    assert all(model.load(mid).builds_dsp_module for mid in [model.DEFAULT] + RIGS_WITH_OWN_DSP)
     assert model.load("cdj2000").builds_dsp_module
     assert not model.load("cdj900").builds_dsp_module
 

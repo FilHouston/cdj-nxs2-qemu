@@ -171,6 +171,12 @@ void jit_auto_poll(c66x_core *c);
 void jit_init(c66x_core *c);
 void jit_free(c66x_core *c);
 
+/* c66x_native.c */
+void native_init(c66x_core *c);
+void native_free(c66x_core *c);
+int native_entry(c66x_core *c, uint32_t pc);
+int native_run(c66x_core *c, uint64_t end);
+
 /* ------------------------------------------------------------------------ */
 /* memory (c66x_mem.c)                                                        */
 

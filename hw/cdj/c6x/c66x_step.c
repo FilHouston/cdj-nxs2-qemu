@@ -96,6 +96,8 @@ int gather_packet(c66x_core *c, uint32_t pc, c66x_insn **pk, unsigned *n,
                                        first->pk_xnops, first->pk_branched, first->pk_allfop,
                                        first->pk_xmask, jit_lookup(c, pc), jit_lookup0(c, pc) };
             c->pkc[hslot].qregion = jit_lookupq(c, pc);
+            /* A native kernel's loop head is handed to the general loop. */
+            c->pkc[hslot].special |= native_entry(c, pc);
         }
     }
     if (first && first->pk_n) {
@@ -199,6 +201,7 @@ int gather_packet(c66x_core *c, uint32_t pc, c66x_insn **pk, unsigned *n,
         e.region = jit_lookup(c, pc);
         e.region0 = jit_lookup0(c, pc);
         e.qregion = jit_lookupq(c, pc);
+        e.special |= native_entry(c, pc);
         c->pkc[hslot] = e;
     }
     return 0;
@@ -712,6 +715,9 @@ c66x_stop c66x_step(c66x_core *c, uint64_t budget, uint64_t *executed)
                 stop = C66X_STOP_IDLE;
                 break;
             }
+            const pkc_ent *npe = &c->pkc[PKC_SLOT(c->pc)];
+            if ((npe->pc == c->pc ? npe->special : native_entry(c, c->pc)) && native_run(c, start + budget))
+                continue;
             hook *hk = c->nhooks ? find_hook(c, c->pc) : NULL;
             if (hk) {
                 if (hk->fn(c, hk->opaque)) {

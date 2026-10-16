@@ -457,7 +457,7 @@ def test_real_upd_repacks_byte_identical_with_no_mods(tmp_path):
 
 
 def test_repack_keeps_the_bytes_after_the_last_section(tmp_path):
-    upd = build_upd(gui_section(), b"driv-section", b"main-section", b"panl-section") + b"TOUR1TABLET" * 50
+    upd = build_upd(gui_section(), b"driv-section", b"main-section", b"panl-section") + b"TRAILER" * 50
     src = tmp_path / "in.UPD"
     src.write_bytes(upd)
     out = tmp_path / "out.UPD"

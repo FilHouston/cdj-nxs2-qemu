@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # One headless deck, no sound, no Pro DJ Link, that loads a track, plays it and
 # stops by itself: the profile and training runs of
-# scripts/build/build_dsp_module.sh. The CDJ-2000NXS2 also has
+# scripts/build/build_dsp_module.sh. Every rig player also has
 # MASTER TEMPO and the tempo fader swept (warm_jit.py).
 #
 #   usage: bash scripts/run/warm_jit.sh [tag=warm] [--dry-run]
