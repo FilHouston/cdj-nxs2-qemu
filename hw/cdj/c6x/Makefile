@@ -79,10 +79,19 @@ $(O)/ext_test: tests/ext_test.c $(CORE_O) | $(O)
 ext-test: $(O)/ext_test
 	$(O)/ext_test
 
+# The DSP program MAIN ships, from the default player's extract.
+MAIN_UNPACKED = $(firstword $(wildcard ../../../extract/main_unpacked.bin ../../../../extract/main_unpacked.bin))
+
+$(O)/native_test: tests/native_test.c $(CORE_O) | $(O)
+	$(CC) $(CFLAGS) $^ -o $@ -lm $(GLIB_LIBS)
+
+native-test: $(O)/native_test
+	$(O)/native_test $(MAIN_UNPACKED)
+
 m1: $(O)/c6xdis
-	python3 tools/c1_m1diff.py $(O)/c6xdis $(firstword $(wildcard ../../../extract/main_unpacked.bin ../../../../extract/main_unpacked.bin))
+	python3 tools/c1_m1diff.py $(O)/c6xdis $(MAIN_UNPACKED)
 
 clean:
 	rm -rf $(O)
 
-.PHONY: all m1 core-test ext-test clean
+.PHONY: all m1 core-test ext-test native-test clean

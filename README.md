@@ -100,42 +100,42 @@ show the firmware interface, not a claim of feature parity.
 | | CDJ-2000NXS2 | XDJ-1000MK2 | XDJ-700 | XDJ-1000 | CDJ-900NXS | CDJ-2000NXS | CDJ-900 | CDJ-2000 |
 |---|---|---|---|---|---|---|---|---|
 | **Media** | | | | | | | | |
-| USB | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| USB | · | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
 | **Playback** | | | | | | | | |
-| Sound | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Real time with the setup DSP module | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
+| Sound | · | ⚠️<sup>1</sup> | ⚠️<sup>1</sup> | · | ⚠️<sup>1</sup> | · | ❌ | · |
+| Real time with the setup DSP module | · | ❌ | ❌ | · | ❌ | · | · | · |
 | **Display** | | | | | | | | |
 | Waveform / overview | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tempo and BPM readout | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Transport** | | | | | | | | |
-| PLAY / pause | ✅ | ✅ | ⚠️<sup>1</sup> | ✅ | ⚠️<sup>1</sup> | ✅ | ✅ | ✅ |
-| CUE | ✅ | ✅ | · | ✅ | · | ✅ | · | ✅ |
+| PLAY / pause | ✅ | · | ⚠️<sup>2</sup> | · | ⚠️<sup>2</sup> | ✅ | · | ✅ |
+| CUE | ✅ | ✅ | · | · | · | ✅ | · | ✅ |
 | **Tempo** | | | | | | | | |
-| Tempo fader | ✅ | · | · | ✅ | · | ✅ | · | ✅ |
-| MASTER TEMPO | ⚠️<sup>2</sup> | · | · | · | · | · | · | · |
+| Tempo fader | ✅ | · | · | · | · | · | · | ✅ |
+| MASTER TEMPO | ⚠️<sup>3</sup> | · | · | · | · | · | · | · |
 | **Jog** | | | | | | | | |
-| Pitch bend | ✅ | · | · | ✅ | · | ✅ | · | ✅ |
-| Vinyl / scratch | ⚠️<sup>3</sup> | · | · | · | · | · | · | · |
-| Needle search | ✅ | · | · | · | ➖ | · | ➖ | · |
+| Pitch bend | ✅ | · | · | · | · | · | · | · |
+| Vinyl / scratch | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
+| Needle search | · | · | · | · | ➖ | · | ➖ | · |
 | **Performance** | | | | | | | | |
 | Hot cues | ✅ | · | · | · | ➖ | · | ➖ | · |
-| Loops | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
+| Loops | ⚠️<sup>5</sup> | · | · | · | · | · | · | · |
 | Beat jump | · | · | · | · | ➖ | ➖ | ➖ | ➖ |
-| Slip | ⚠️<sup>5</sup> | · | · | · | · | · | · | ➖ |
+| Slip | ⚠️<sup>6</sup> | · | · | · | · | · | · | ➖ |
 | **Interface** | | | | | | | | |
-| Touch screen | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ |
+| Touch screen | · | · | · | · | ➖ | ➖ | ➖ | ➖ |
 | **Pro DJ Link** | | | | | | | | |
-| Link with other players | ✅ | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ⚠️<sup>7</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> |
+| Link with other players | · | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> |
 
 Firmware: CDJ-2000NXS2 1.87, XDJ-1000MK2 1.45, XDJ-700 1.15, XDJ-1000 1.13, CDJ-900NXS 1.31, CDJ-2000NXS 1.44, CDJ-900 4.32, CDJ-2000 4.33.
 
-1. Only one run so far.
-2. Sound can drop out after switching it on.
-3. VINYL scratching not tested yet.
-4. Loops engage in only some runs.
-5. The slipped playback is not checked yet.
-6. Only one deck can be started so far.
-7. Announces itself; browsing not checked yet.
+1. Plays below real time, so the sound is chopped.
+2. Only one run so far.
+3. MASTER TEMPO engages at an off-centre tempo and the deck keeps real time on an idle host, but the sound dropped out after it was switched on in 2 of 3 runs.
+4. VINYL scratching not tested yet.
+5. Loops engage in only some runs.
+6. The slipped playback is not checked yet.
+7. The launcher starts this player as a single deck, so Pro DJ Link is not available for it yet.
 
 </details>
 <!-- feature-matrix:end -->

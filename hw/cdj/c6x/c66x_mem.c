@@ -546,6 +546,7 @@ c66x_insn *fetch_insn(c66x_core *c, uint32_t a)
     if (!pg) {
         pg = r->fpp[off >> FP_PAGE_SHIFT] = calloc(1u << (FP_PAGE_SHIFT - 5), sizeof(fpblk *));
         r->codepage[off >> FP_PAGE_SHIFT] |= CP_CODE;
+        c->code_pages++;
     }
     fpblk **bp = &pg[(off >> 5) & ((1u << (FP_PAGE_SHIFT - 5)) - 1)];
     if (!*bp)

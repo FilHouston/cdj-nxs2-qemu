@@ -270,10 +270,13 @@ struct c66x_core {
     uint32_t idle_rs_bloom[IDLE_RS_BLOOM / 32];
     /* native kernels (c66x_native.c) */
     uint8_t  native_mode;           /* C66X_NATIVE: 0 off, 1 on, 2 check against the interpreter */
-    uint32_t native_ok;             /* kernels whose code bytes matched ... */
+    uint32_t native_ok;             /* kernels whose code was found once ... */
     uint64_t native_gen;            /* ... at this code_gen + 1 */
+    uint64_t native_pages;          /* ... and this many code pages */
     uint64_t native_entries, native_cycles;
     struct native_check *native_chk;
+    struct native_found *native_found;
+    uint64_t code_pages;            /* pages that hold decoded code */
 };
 
 /* ------------------------------------------------------------------------ */
