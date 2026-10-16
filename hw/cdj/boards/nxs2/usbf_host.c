@@ -191,7 +191,8 @@ static void cdj_usbf_host_next_step(CdjUsbfHost *h)
     case STEP_SET_CONFIG:
         if (h->hid_in || h->hid_out) {
             /* GET_DESCRIPTOR(report) for the bridge's virtual device */
-            cdj_usbf_host_request(h, USB_DIR_IN, USB_REQ_GET_DESCRIPTOR,
+            cdj_usbf_host_request(h, USB_DIR_IN | USB_RECIP_INTERFACE,
+                                  USB_REQ_GET_DESCRIPTOR,
                                   0x22 << 8, HID_DESC_MAX);
             stw_le_p(h->setup + 4, h->hid_if);   /* wIndex = the HID interface */
             break;

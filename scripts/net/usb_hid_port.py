@@ -142,9 +142,13 @@ class Uhid:
 
 
 def describe(report):
-    """One line for --monitor: the handshake name when there is one."""
-    if len(report) > 1 and report[1] in HANDSHAKE:
-        return "  (%s)" % HANDSHAKE[report[1]]
+    """One line for --monitor: the handshake name when there is one.
+
+    A handshake report is [0] deck, [1] 0xF0, [2..3] index, [4..5] total, then
+    the super-TLV whose type (0x11..0x15) is byte 6.
+    """
+    if len(report) > 6 and report[1] == 0xF0 and report[6] in HANDSHAKE:
+        return "  (%s)" % HANDSHAKE[report[6]]
     return ""
 
 

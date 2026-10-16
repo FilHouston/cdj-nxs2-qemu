@@ -70,6 +70,9 @@ def test_input2_prefixes_the_length():
 # -- monitor -------------------------------------------------------------------
 
 def test_describe_names_the_handshake():
-    assert up.describe(bytes.fromhex("00 11 00 00")) == "  (announce)"
-    assert up.describe(bytes.fromhex("00 15 02 00")) == "  (ack)"
-    assert up.describe(bytes.fromhex("00 20 00")) == ""
+    # the deck's announce and ack as the firmware sends them (type at byte 6)
+    assert up.describe(bytes.fromhex("00 F0 01 00 01 00 11 06 01 04 01 57")) == "  (announce)"
+    assert up.describe(bytes.fromhex("00 F0 01 00 01 00 15 02")) == "  (ack)"
+    assert up.describe(bytes.fromhex("00 20 00 00 00 80 60")) == ""
+    assert up.describe(bytes.fromhex("00 11 00 00")) == ""
+    assert up.describe(bytes(64)) == ""
