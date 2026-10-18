@@ -13,7 +13,7 @@ import re
 import shutil
 import time
 
-from . import chain
+from . import chain, sites
 from . import model as cdj_model
 from .chain import export_default, nonempty
 from .layout import Layout
@@ -41,6 +41,11 @@ def batch_env(env, lay, prefix=""):
     # the decks and leaves them to the user for FILMN x MOTION_MS.
     if nonempty(env, "AUTOLOAD", "1") == "1":
         env["DRIVER"] = os.path.join(lay.run, "load_track.py")
+        found = sites.find(lay)
+        if found.has("deck_ready"):
+            export_default(env, "READY_ADDR", "0x%08X" % found.get("deck_ready"))
+        else:
+            export_default(env, "READY_WAIT", "0")
         dur = 2
     else:
         chain.unset(env, "DRIVER")

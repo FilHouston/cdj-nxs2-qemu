@@ -364,7 +364,7 @@ def test_the_closure_finds_the_tasks_and_none_of_the_nxs2_sites_in_it():
     stock = open(REAL_NXS2, "rb").read()
     fw = modelfw.load("cdj2000nxs2")
     img = validate_image(stock, fw)
-    closure = bootcrit.closure(img)
+    closure = bootcrit.closure(img, modelfw.main_base("cdj2000nxs2"))
     assert {"UpDtae_TASK", "PnlCom_SndTASK", "PnlCom_RcvTASK", "RdMngRcv_TASK", "RdMngExeUSB_TASK",
             "gui_comm", "root", "Idle"} <= set(closure.roots)
     assert closure.roots["UpDtae_TASK"] + 0x08000000 == 0x08118714

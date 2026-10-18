@@ -5,8 +5,8 @@ Every rig player also has MASTER TEMPO and the tempo fader
 swept (scripts/run/warm_jit.py).
 
   usage: bash scripts/run/warm_jit.sh [tag=warm] [--dry-run]
-  env:   PLAY_S=45 (virtual seconds of play after the load; 30 for a
-         one-window model, which has no sweep), plus any rig.sh
+  env:   PLAY_S=45 (virtual seconds of play after the load; 60 for a
+         one-window model, whose play only turns MASTER TEMPO on), plus any rig.sh
          knob: MODULE=none, AUTOJIT=0|1, C66X_JIT_PROFILE, ...
          DSP_TRAIN_MODULE=<m.so>: run with that module (an instrumented build
          collecting its profile-guided counts) instead of none
@@ -102,12 +102,12 @@ def record_deck(lay, m, tag, dry):
     play it for PLAY_S wall seconds and quit, so the profile is written
     (C66X_JIT_PROFILE). The core skips its idle loop as it does in a session.
     Returns 1 unless the deck played."""
-    play_s = nonempty(os.environ, "PLAY_S", "30")
+    play_s = nonempty(os.environ, "PLAY_S", "60")
     log = os.path.join(lay.tmp, "bridge-main-%s1.log" % tag)
     mon = "%s/cdj-deck-%s-%s-mon.sock" % (lay.tmp, m.id, tag)
     screen = os.path.join(lay.tmp, "bridge-main-%s1.ppm" % tag)
     env = dict(os.environ, MODULE="none", AUDIODEV="none", GUI_DISPLAY="none", CDJ_REPORT="1",
-               MODEL_IDLE_S=m.idle_s, MODEL_LOAD_STEPS=m.load_steps)
+               MODEL_IDLE_S=m.idle_s, MODEL_LOAD_STEPS=m.load_steps, MODEL_PROFILE_STEPS=m.profile_steps)
     _train_module(env)
     argv, env = deck_command(lay, m, env)
     argv += ["-monitor", _monsock(lay).spec(mon)]

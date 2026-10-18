@@ -21,9 +21,16 @@
  *
  * "configured" is repeated every second, for a program started later. An
  * endpoint the deck does not have reads 00.
+ *
+ * Once configured, endpoint byte 0x80 runs a control transfer on the deck for
+ * the program (scripts/net/usbip_server.py hands the deck to a USB/IP client
+ * with it). Host -> deck: the 8 setup bytes, then the data of an OUT request.
+ * Deck -> host: the time, one status byte (0 done, 1 stalled or no answer) and
+ * the data of an IN request.
  */
 #define CDJ_USBF_HOST_ENV "CDJ_USBF_HOST"
-/* A report descriptor is well under this; the deck's own is a few hundred bytes. */
+#define CONTROL_EP 0x80
+/* A report descriptor is well under this; the NXS2's own is 52 bytes. */
 #define HID_DESC_MAX 512
 
 enum { HOST_DETACHED, HOST_SETTLE, HOST_ENUMERATE, HOST_CONFIGURED, HOST_FAILED };
@@ -55,6 +62,8 @@ typedef struct {
 
     uint8_t out[1 + 1024];          /* a host->deck datagram not yet taken */
     int out_len;
+    bool relaying;                  /* out holds a control transfer, running */
+    bool stalled;
 } CdjUsbfHost;
 
 static void cdj_usbf_host_request(CdjUsbfHost *h, uint8_t type, uint8_t request,
@@ -70,10 +79,12 @@ static void cdj_usbf_host_request(CdjUsbfHost *h, uint8_t type, uint8_t request,
 }
 
 /* Advance the control transfer by one token; true when it has completed.
- * A NAK is simply tried again on the next tick. */
+ * A NAK is simply tried again on the next tick. The data of an OUT request
+ * is in h->out after the datagram's endpoint byte and the setup bytes. */
 static bool cdj_usbf_host_control(CdjUsbfHost *h)
 {
     unsigned want = lduw_le_p(h->setup + 6);
+    bool in = h->setup[0] & USB_DIR_IN;
     int n;
 
     switch (h->stage) {
@@ -85,7 +96,19 @@ static bool cdj_usbf_host_control(CdjUsbfHost *h)
         h->stage = want ? XFER_DATA : XFER_STATUS;
         return false;
     case XFER_DATA:
+        if (!in) {
+            unsigned chunk = MIN(want - h->len, h->maxp0 ? h->maxp0 : 8);
+
+            n = cdj_usbf_out(h->dev, 0, h->out + 9 + h->len, chunk);
+            h->stalled = n == CDJ_USBF_STALL;
+            if (n >= 0) {
+                h->len += chunk;
+                h->stage = h->len < want ? XFER_DATA : XFER_STATUS;
+            }
+            return false;
+        }
         n = cdj_usbf_in(h->dev, 0, h->data + h->len, want - h->len);
+        h->stalled = n == CDJ_USBF_STALL;
         if (n < 0) {
             return false;
         }
@@ -98,8 +121,9 @@ static bool cdj_usbf_host_control(CdjUsbfHost *h)
         h->stage = XFER_STATUS;
         return false;
     default:
-        n = want ? cdj_usbf_out(h->dev, 0, NULL, 0)
-                 : cdj_usbf_in(h->dev, 0, NULL, 0);
+        n = in && want ? cdj_usbf_out(h->dev, 0, NULL, 0)
+                       : cdj_usbf_in(h->dev, 0, NULL, 0);
+        h->stalled = n == CDJ_USBF_STALL;
         return n >= 0;
     }
 }
@@ -216,6 +240,28 @@ static void cdj_usbf_host_next_step(CdjUsbfHost *h)
     }
 }
 
+/* Run a control transfer a program asked for, and tell it how it went. */
+static void cdj_usbf_host_relay_control(CdjUsbfHost *h)
+{
+    bool in = h->setup[0] & USB_DIR_IN;
+    bool done = cdj_usbf_host_control(h);
+    uint8_t pkt[1 + 8 + 1 + 1024];
+
+    if (!done && !h->stalled
+        && qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) - h->since_ms <= 5000) {
+        return;
+    }
+    pkt[0] = CONTROL_EP;
+    stq_le_p(pkt + 1, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    pkt[9] = !done;
+    if (done && in) {
+        memcpy(pkt + 10, h->data, h->len);
+    }
+    (void)send(h->fd, pkt, 10 + (done && in ? h->len : 0), 0);
+    h->relaying = false;
+    h->out_len = 0;
+}
+
 /* Poll the IN endpoints and deliver what the desktop sent. A full-speed
  * frame carries at most 19 64-byte bulk packets. */
 static void cdj_usbf_host_relay(CdjUsbfHost *h)
@@ -239,10 +285,20 @@ static void cdj_usbf_host_relay(CdjUsbfHost *h)
         }
     }
 
+    if (h->relaying) {
+        cdj_usbf_host_relay_control(h);
+        return;
+    }
     if (h->out_len <= 0) {
         h->out_len = recv(h->fd, h->out, sizeof(h->out), 0);
     }
-    if (h->out_len > 0) {
+    if (h->out_len >= 9 && h->out[0] == CONTROL_EP) {
+        memcpy(h->setup, h->out + 1, 8);
+        h->stage = XFER_SETUP;
+        h->stalled = false;
+        h->since_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+        h->relaying = true;
+    } else if (h->out_len > 0) {
         if (!h->out[0] || (h->out[0] & USB_DIR_IN)
             || cdj_usbf_out(h->dev, h->out[0] & 0x0f, h->out + 1,
                             h->out_len - 1) != CDJ_USBF_NAK) {

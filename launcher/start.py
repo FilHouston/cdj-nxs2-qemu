@@ -8,6 +8,8 @@ controller, the bridge. Ctrl-C stops everything.
                                  or an older one: see models/); setup.sh
                                  stores the one you chose in cdj.conf
          ./start.sh --app       start with the virtual deck app as the window
+                                 (every player that has a face in app/faces/; a player
+                                 without one keeps its plain window)
          ./start.sh --service   boot into the service manual's SERVICE MODE
                                  screen instead of the player (see "Service
                                  mode" in README.md)
@@ -43,6 +45,22 @@ def _python_cmd(value, default=()):
     return argv if argv and shutil.which(argv[0]) else []
 
 
+def _app_python(lay, c):
+    """The Python the virtual deck app runs on, or None once it has said what
+    that Python lacks. setup installs Pillow and pygame into .venv/, so the app
+    runs there when it exists; this interpreter is for setups without one."""
+    venv = os.path.join(lay.emu, ".venv", "bin", "python")
+    app_py = _python_cmd(c["CDJ_APP_PYTHON"],
+                         [venv] if os.access(venv, os.X_OK) else host.python_argv())
+    if not lay.packaged and subprocess.run(app_py + ["-c", "import pygame, PIL"],
+                                           capture_output=True).returncode:
+        chain.err("the virtual deck app needs pygame-ce and Pillow in %s:" % " ".join(app_py))
+        chain.err("  %s -m pip install -r requirements.txt   (or: pygame-ce Pillow)" % " ".join(app_py))
+        chain.err("or run without --app (the plain deck windows).")
+        return None
+    return app_py
+
+
 def _stale_builds(lay, env):
     """Build trees older than the board sources, judged by
     scripts/build/source_stamp.sh, which build.sh stamps them with."""
@@ -67,14 +85,20 @@ def _offer_rebuild(lay, env, dry):
     say("the emulator's source has changed since it was last built:")
     for s in stale:
         say("    " + s)
+    ans = None
     if not dry and stdin_is_tty():
-        ans = input("rebuild now (a few minutes)? [Y/n] ").strip() or "y"
-        if ans[:1] in "Yy":
-            return subprocess.run([host.find_bash(), host.posix(os.path.join(lay.emu, "build.sh")),
-                                   "main", "display"], env=env).returncode == 0
-        say("starting the old build (./build.sh main display rebuilds it)")
-    else:
+        # MSYS reports /dev/null as a terminal, so the prompt can still hit EOF.
+        try:
+            ans = input("rebuild now (a few minutes)? [Y/n] ").strip() or "y"
+        except EOFError:
+            print()
+    if ans is None:
         say("run ./build.sh main display to pick the changes up")
+    elif ans[:1] in "Yy":
+        return subprocess.run([host.find_bash(), host.posix(os.path.join(lay.emu, "build.sh")),
+                               "main", "display"], env=env).returncode == 0
+    else:
+        say("starting the old build (./build.sh main display rebuilds it)")
     return True
 
 
@@ -144,7 +168,10 @@ def main(argv):
                           *(["Not the v%s images: %s" % (player.fw_version, " ".join(differ))] if differ else []),
                           *(["Switched off for it:"] + ["  - " + line for line in off] if off else []))
     if not player.is_rig:
-        return _start_deck(lay, player, c, dry)
+        if app and not player.app_face:
+            say("the virtual deck app has no face for the %s yet; starting its plain window" % player.title)
+        use_app = c["CDJ_APP"] == "1" if app is None else app
+        return _start_deck(lay, player, c, dry, use_app and bool(player.app_face))
     if app is None:
         # The packaged program's window is the virtual deck app unless the
         # settings say otherwise.
@@ -203,10 +230,10 @@ def main(argv):
     if not _offer_rebuild(lay, env, dry):
         return 1
     missing = [f for f in ("main_unpacked.bin", "gui_unpacked.bin", "flash.bin")
-               if not os.path.isfile(os.path.join(lay.extract, f))]
+               if not os.path.isfile(os.path.join(model.extract_dir(lay, player), f))]
     if missing:
-        chain.err("missing firmware images: %s -- run ./setup.sh --firmware <C2KNXS2.UPD>"
-                  % " ".join("extract/" + f for f in missing))
+        chain.err("missing firmware images: %s -- run ./setup.sh --firmware <%s>"
+                  % (" ".join(player.extract + "/" + f for f in missing), player.upd[0]))
         return 1
     if nonempty(env, "MEDIA_MODE", "img") == "img" and not env.get("MEDIA_IMG_SRC") \
             and not os.path.isfile(lay.usb_image):
@@ -218,16 +245,8 @@ def main(argv):
     # frame file, and the app draws the player around it.
     app_cmd = []
     if app:
-        # setup installs Pillow and pygame into .venv/, so the app runs there
-        # when it exists; this interpreter is for setups without one.
-        venv = os.path.join(lay.emu, ".venv", "bin", "python")
-        app_py = _python_cmd(c["CDJ_APP_PYTHON"],
-                             [venv] if os.access(venv, os.X_OK) else host.python_argv())
-        if not lay.packaged and subprocess.run(app_py + ["-c", "import pygame, PIL"],
-                                               capture_output=True).returncode:
-            chain.err("the virtual deck app needs pygame-ce and Pillow in %s:" % " ".join(app_py))
-            chain.err("  %s -m pip install -r requirements.txt   (or: pygame-ce Pillow)" % " ".join(app_py))
-            chain.err("or run without --app (the plain deck windows).")
+        app_py = _app_python(lay, c)
+        if app_py is None:
             return 1
         env["GUI_DISPLAY"] = "vnc"
         vnc_want = int(nonempty(env, "CDJ_APP_VNC_BASE", "5920"))
@@ -248,6 +267,8 @@ def main(argv):
         app_cmd = app_py + [os.path.join(lay.emu, "app", "virtual_deck.py"), "--decks", decks,
                             "--prefix", c["CDJ_NAME"], "--relay", "127.0.0.1:" + env["RELAY_PORT"],
                             "--vnc-base", env["CDJ_APP_VNC_BASE"], "--frame-dir", env["CDJ_APP_FRAME_DIR"]]
+        if player.app_face:
+            app_cmd += ["--model", player.app_face]
 
     # The bridge runs on the Python setup recorded: on Windows a native one.
     bridge = []
@@ -279,8 +300,10 @@ def main(argv):
     return run(lay, env, launch, bridge, app_cmd)
 
 
-def _start_deck(lay, player, c, dry):
-    """An older player: one window, none of the NXS2 rig around it."""
+def _start_deck(lay, player, c, dry, app=False):
+    """An older player: one window, none of the NXS2 rig around it. With the
+    app, its screen goes to a VNC server and the app draws the player around
+    it, sending the drawn keys to the panel socket the host keyboard uses."""
     env = dict(os.environ)
     if lay.packaged:
         env["MAIN_QEMU"] = lay.qemu_binaries()[0]
@@ -294,7 +317,23 @@ def _start_deck(lay, player, c, dry):
         env["NOSOUND"] = "1"
     if not _offer_rebuild(lay, env, dry):
         return 1
-    return deck.start(player, env, dry)
+    app_cmd = []
+    if app:
+        app_py = _app_python(lay, c)
+        if app_py is None:
+            return 1
+        vnc_want = int(nonempty(env, "CDJ_APP_VNC_BASE", "5920"))
+        vnc_base = host.pick_port_block(vnc_want, 1)
+        if vnc_base != vnc_want:
+            say("TCP %d+ is reserved or in use here; the deck app's VNC screen uses %d+ instead" % (
+                vnc_want, vnc_base))
+        env["GUI_DISPLAY"] = "vnc=127.0.0.1:%d" % (vnc_base + 1 - 5900)
+        env["CDJ_PANEL_KEYSOCK"] = nonempty(env, "CDJ_PANEL_KEYSOCK", str(host.pick_udp_port(deck.PANEL_KEY_PORT)))
+        env["CDJ_APP_LOG"] = env.get("CDJ_APP_LOG") or os.path.join(lay.logs, "app.log")
+        app_cmd = app_py + [os.path.join(lay.emu, "app", "virtual_deck.py"), "--model", player.app_face,
+                            "--decks", "1", "--prefix", c["CDJ_NAME"], "--vnc-base", str(vnc_base),
+                            "--panel-port", env["CDJ_PANEL_KEYSOCK"]]
+    return deck.start(player, env, dry, app_cmd)
 
 
 def _shown(argv):

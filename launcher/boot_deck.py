@@ -665,7 +665,7 @@ def main(argv):
     if os.environ.get("MAIN_BOOT") == "flash" and not flash_has_bootloader(
             os.path.join(cdj_model.extract_dir(lay, profile), "flash.bin")):
         chain.err("[%s] %s/flash.bin holds no bootloader (made by an older setup); run "
-                  "./setup.sh --firmware <C2KNXS2.UPD> again, or leave MAIN_BOOT unset" % (tag, profile.extract))
+                  "./setup.sh --firmware <%s> again, or leave MAIN_BOOT unset" % (tag, profile.extract, profile.upd[0]))
         return 1
     deck = Deck(tag, dict(os.environ), lay, profile)
     if not deck.start():

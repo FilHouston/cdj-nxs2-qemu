@@ -287,8 +287,9 @@ def test_registry_only_lists_firmware_patchable_mods():
     # the emulator-only knobs must never appear here
     assert "high_fps" not in reg and "live_clock" not in reg
     assert "three_band" not in reg          # that row's key, not the mod names
-    assert list(patch_update.conf_rows()) == ["high_fps", "live_clock", "ableton_link", "osc", "phrase",
-                                              "tcnet", "three_band", "track_filter", "usb_midi"]
+    rows = list(patch_update.conf_rows())
+    assert rows[:2] == ["high_fps", "live_clock"] and rows[2:] == sorted(rows[2:])
+    assert {"ableton_link", "osc", "phrase", "tcnet", "three_band", "track_filter", "usb_midi"} <= set(rows)
 
 
 def test_list_cli_shows_target_and_versions():

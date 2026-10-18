@@ -13,9 +13,20 @@ Pioneer DJ players on your computer, from the CDJ-2000 to the NXS2 and XDJ famil
 
 [Supported players](#supported-players) · [Quick start](#quick-start) · [Keyboard](#keyboard) · [Virtual deck](#virtual-deck) · [Mods](#mods) · [How it works](#how-it-works)
 
-<a href="docs/img/deck-showcase.png"><img src="docs/img/deck-showcase.png" alt="Real emulator screens for six players: supported CDJ-2000NXS2, and experimental XDJ-700, XDJ-1000, CDJ-900NXS, CDJ-2000NXS and CDJ-2000. Except the CDJ-900, the older decks play in real time with the DSP module setup builds." width="960"></a>
+<table>
+  <tr>
+    <td align="center"><a href="docs/img/decks/cdj2000nxs2.png"><img src="docs/img/decks/cdj2000nxs2.png" alt="CDJ-2000NXS2 screen playing a track" height="180"></a><br><sub>CDJ-2000NXS2</sub></td>
+    <td align="center"><a href="docs/img/decks/xdj1000.png"><img src="docs/img/decks/xdj1000.png" alt="XDJ-1000 screen playing a track" height="180"></a><br><sub>XDJ-1000</sub></td>
+    <td align="center"><a href="docs/img/decks/xdj700.png"><img src="docs/img/decks/xdj700.png" alt="XDJ-700 screen playing a track" height="180"></a><br><sub>XDJ-700</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/img/decks/cdj900nxs.png"><img src="docs/img/decks/cdj900nxs.png" alt="CDJ-900NXS screen playing a track" height="180"></a><br><sub>CDJ-900NXS</sub></td>
+    <td align="center"><a href="docs/img/decks/cdj2000nxs.png"><img src="docs/img/decks/cdj2000nxs.png" alt="CDJ-2000NXS screen playing a track" height="180"></a><br><sub>CDJ-2000NXS</sub></td>
+    <td align="center"><a href="docs/img/decks/cdj2000.png"><img src="docs/img/decks/cdj2000.png" alt="CDJ-2000 screen playing a track" height="180"></a><br><sub>CDJ-2000</sub></td>
+  </tr>
+</table>
 
-<sub>Actual emulator captures from development builds. Select the image for a closer look.</sub>
+<sub>Screens captured from the emulator. Select one for full size.</sub>
 
 </div>
 
@@ -100,42 +111,42 @@ show the firmware interface, not a claim of feature parity.
 | | CDJ-2000NXS2 | XDJ-1000MK2 | XDJ-700 | XDJ-1000 | CDJ-900NXS | CDJ-2000NXS | CDJ-900 | CDJ-2000 |
 |---|---|---|---|---|---|---|---|---|
 | **Media** | | | | | | | | |
-| USB | · | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
+| USB | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Playback** | | | | | | | | |
-| Sound | · | ⚠️<sup>1</sup> | ⚠️<sup>1</sup> | · | ⚠️<sup>1</sup> | · | ❌ | · |
-| Real time with the setup DSP module | · | ❌ | ❌ | · | ❌ | · | · | · |
+| Sound | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Real time with the setup DSP module | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
 | **Display** | | | | | | | | |
 | Waveform / overview | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Tempo and BPM readout | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Transport** | | | | | | | | |
-| PLAY / pause | ✅ | · | ⚠️<sup>2</sup> | · | ⚠️<sup>2</sup> | ✅ | · | ✅ |
-| CUE | ✅ | ✅ | · | · | · | ✅ | · | ✅ |
+| PLAY / pause | ✅ | ✅ | ⚠️<sup>1</sup> | ✅ | ⚠️<sup>1</sup> | ✅ | ✅ | ✅ |
+| CUE | ✅ | ✅ | · | ✅ | · | ✅ | · | ✅ |
 | **Tempo** | | | | | | | | |
-| Tempo fader | ✅ | · | · | · | · | · | · | ✅ |
-| MASTER TEMPO | ⚠️<sup>3</sup> | · | · | · | · | · | · | · |
+| Tempo fader | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
+| MASTER TEMPO | ⚠️<sup>2</sup> | · | · | · | · | · | · | · |
 | **Jog** | | | | | | | | |
-| Pitch bend | ✅ | · | · | · | · | · | · | · |
-| Vinyl / scratch | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
-| Needle search | · | · | · | · | ➖ | · | ➖ | · |
+| Pitch bend | ✅ | · | · | ✅ | · | ✅ | · | ✅ |
+| Vinyl / scratch | ⚠️<sup>3</sup> | ✅ | ✅ | ✅ | ✅ | ✅ | · | ✅ |
+| Needle search | ✅ | · | · | · | ➖ | · | ➖ | · |
 | **Performance** | | | | | | | | |
 | Hot cues | ✅ | · | · | · | ➖ | · | ➖ | · |
-| Loops | ⚠️<sup>5</sup> | · | · | · | · | · | · | · |
+| Loops | ⚠️<sup>4</sup> | · | · | · | · | · | · | · |
 | Beat jump | · | · | · | · | ➖ | ➖ | ➖ | ➖ |
-| Slip | ⚠️<sup>6</sup> | · | · | · | · | · | · | ➖ |
+| Slip | ⚠️<sup>5</sup> | · | · | · | · | · | · | ➖ |
 | **Interface** | | | | | | | | |
-| Touch screen | · | · | · | · | ➖ | ➖ | ➖ | ➖ |
+| Touch screen | ✅ | ✅ | ✅ | ✅ | ➖ | ➖ | ➖ | ➖ |
 | **Pro DJ Link** | | | | | | | | |
-| Link with other players | · | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> | ❌<sup>7</sup> |
+| Link with other players | ✅ | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> | ⚠️<sup>7</sup> | ❌<sup>6</sup> | ❌<sup>6</sup> |
 
 Firmware: CDJ-2000NXS2 1.87, XDJ-1000MK2 1.45, XDJ-700 1.15, XDJ-1000 1.13, CDJ-900NXS 1.31, CDJ-2000NXS 1.44, CDJ-900 4.32, CDJ-2000 4.33.
 
-1. Plays below real time, so the sound is chopped.
-2. Only one run so far.
-3. MASTER TEMPO engages at an off-centre tempo and the deck keeps real time on an idle host, but the sound dropped out after it was switched on in 2 of 3 runs.
-4. VINYL scratching not tested yet.
-5. Loops engage in only some runs.
-6. The slipped playback is not checked yet.
-7. The launcher starts this player as a single deck, so Pro DJ Link is not available for it yet.
+1. Only one run so far.
+2. Sound can drop out after switching it on.
+3. VINYL scratching not tested yet.
+4. Loops engage in only some runs.
+5. The slipped playback is not checked yet.
+6. Only one deck can be started so far.
+7. Announces itself; browsing not checked yet.
 
 </details>
 <!-- feature-matrix:end -->
@@ -576,22 +587,27 @@ Toggle*, then press `LINK` in the transport. With the mod on, the toggle shows
 
 ## Mods
 
-Small on/off tweaks to how the deck behaves, each with its own default and a
-folder of its own under `mods/` (see [adding a mod](#adding-a-mod)). Setup and
-start offer a player only the mods whose `mod.conf` lists it under `MOD_MODELS`
-(`track_filter` is for the XDJ-700, the others for the CDJ-2000NXS2):
+Optional changes to the firmware, each with a folder of its own under `mods/`
+(see [adding a mod](#adding-a-mod)). Two small display fixes are on by default;
+the mods below are off until you switch them on. Setup and start offer a player
+only the mods made for it.
 
-| mod | what it does | default |
-|---|---|---|
-| [`high_fps`](mods/high_fps/README.md) | Draw the zoomed-in waveform about twice as often (~70 fps instead of ~33). | on |
-| [`live_clock`](mods/live_clock/README.md) | Repaint the REMAIN clock every frame instead of about three times a second. | on |
-| [`three_band`](mods/three_band/README.md) | Draw the centre waveform and the overview as three bands (low blue, mid amber, high white), CDJ-3000 style, from the track's own 3-band data (.2EX). | off |
-| [`phrase`](mods/phrase/README.md) | Draw a coloured phrase band along the bottom of the overview strip, CDJ-3000 style, from the track's own phrase analysis in its `.EXT` file; tracks without it get no band. | off |
-| [`osc`](mods/osc/README.md) | Send the deck's beats, state and load/play/stop/cue/loop events as OSC messages on UDP broadcast port 50010, for lighting desks and scripts. | off |
-| [`usb_midi`](mods/usb_midi/README.md) | Send MIDI Start, Stop, Continue and Timing Clock over the rear USB-B port, so a DAW or drum machine follows the deck. | off |
-| [`ableton_link`](mods/ableton_link/README.md) | Join Ableton Link as a peer: Live or any Link app on the deck's network follows its tempo and beat. | off |
-| [`tcnet`](mods/tcnet/README.md) | Act as a TCNet Master node, broadcasting the deck's play position, track length, beat in the bar and play state on UDP 60000/60001 and answering Metrics (BPM, speed) and MetaData requests on UDP 65023, so ShowKontrol, Resolume or other TCNet receivers can follow it. | off |
-| [`track_filter`](mods/track_filter/README.md) | XDJ-700 only: switch a BPM filter on and off with a long press of INFO in the track list, so only the tracks within 6 % of the loaded deck's BPM are listed. | off |
+**CDJ-2000NXS2**
+
+| mod | what it does |
+|---|---|
+| [`three_band`](mods/three_band/README.md) | Three-band waveforms (low blue, mid amber, high white), CDJ-3000 style, from the track's own 3-band data. |
+| [`phrase`](mods/phrase/README.md) | A coloured phrase band under the overview, CDJ-3000 style, from the track's phrase analysis. |
+| [`osc`](mods/osc/README.md) | Beats, state and transport events as OSC messages, for lighting desks and scripts. |
+| [`usb_midi`](mods/usb_midi/README.md) | MIDI clock and Start/Stop over the rear USB-B port, so a DAW or drum machine follows the deck. |
+| [`ableton_link`](mods/ableton_link/README.md) | Joins Ableton Link, so Live or any Link app follows the deck's tempo and beat. |
+| [`tcnet`](mods/tcnet/README.md) | A TCNet Master node, so ShowKontrol, Resolume and other TCNet receivers follow the deck. |
+
+**XDJ-700**
+
+| mod | what it does |
+|---|---|
+| [`track_filter`](mods/track_filter/README.md) | A long press of INFO in the track list shows only tracks within 6 % of the loaded deck's BPM. |
 
 Each mod has a page of its own: its knobs, what it patches, and what has and has
 not been verified. `osc` needs a relay on the emulator
@@ -610,8 +626,8 @@ what the deck boots into, not how it behaves once it is up.
 
 ### Patching a real firmware update
 
-`three_band`, `phrase`, `osc`, `usb_midi`, `ableton_link`, `tcnet` and
-`track_filter` are firmware code patches, not emulator knobs: the launcher applies the display ones to a copy of
+`three_band`, `phrase`, `osc`, `usb_midi`, `ableton_link`, `tcnet`
+and `track_filter` are firmware code patches, not emulator knobs: the launcher applies the display ones to a copy of
 the display image at boot (`mods/patch_gui.py`) and the MAIN ones to a copy of
 the MAIN image (`mods/patch_main.py`), the same code a real update would carry.
 `mods/patch_update.py` makes the same patches to a real Pioneer `.UPD` file, so

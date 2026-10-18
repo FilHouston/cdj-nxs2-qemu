@@ -149,6 +149,8 @@ void idle_rs_clear(c66x_core *c);
 uint32_t mem_read(c66x_core *c, uint32_t a, unsigned n);
 void mem_write(c66x_core *c, uint32_t a, uint32_t v, unsigned n, int in_isr, uint32_t pc);
 c66x_insn *fetch_insn(c66x_core *c, uint32_t a);
+void *line_alloc(size_t n);
+void line_free(void *b);
 
 /* c66x_exec.c */
 int fop_run(c66x_core *c, const c66x_insn *in, uint32_t next_pc);

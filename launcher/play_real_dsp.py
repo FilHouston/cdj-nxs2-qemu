@@ -55,9 +55,9 @@ def batch_env(env, found):
     env["CDJ_SPILINK_THIN3"] = nonempty(env, "THIN", "8")
     env["SPILINK_KEEP_FRAMES"] = nonempty(env, "KEEPF", "1024")
     env["CDJ_SPILINK_DEDUP"] = "1"
-    # The ladder and the play-key holds poke addresses of the supported update.
-    holds0 = nonempty(env, "HOLDS", "0") == "0" or not found.supported
-    ladder = nonempty(env, "LADDER", "1") == "1" and found.supported
+    # The ladder and the play-key holds poke addresses of the CDJ-2000NXS2 1.87 MAIN.
+    holds0 = nonempty(env, "HOLDS", "0") == "0" or not found.board_image
+    ladder = nonempty(env, "LADDER", "1") == "1" and found.board_image
     # LADDER=1: MAIN-side transport forces -- the edge RPOKEs and the start-arm
     # hold anchored at the edge detector's load 0x0844323A, armed once the
     # waveform publisher 0x084E294E has run. No CDJ_PCALL: the load poke is the
@@ -67,7 +67,7 @@ def batch_env(env, found):
         env["CDJ_PPOKE_ARM"] = nonempty(env, "ARM", "0x084E294E")
         env["PPOKEX"] = nonempty(env, "PPOKEX", "%s:0x0B058C10:0x00010000:0xFF00FFFF:0:1"
                                  % nonempty(env, "EDGEPC", "0x0844323A"))
-    elif (c6x and holds0) or not found.supported:
+    elif (c6x and holds0) or not found.board_image:
         # With the real DSP the deck mode reaches 3 unforced.
         export_default(env, "CDJ_RPOKE", "none")
     else:
@@ -81,7 +81,7 @@ def batch_env(env, found):
         pokes.append("0x%08X:3:1" % found.get("colour_capability"))
     if c6x and holds0 and not ladder:
         env["KEYBITS"] = nonempty(env, "KEYBITS", "0x00")
-    elif found.supported:
+    elif found.board_image:
         pokes += ["0x0B056E38:1:4", "0x0B058C00:1:4"]
     if env.get("POKEX"):
         pokes.append(env["POKEX"])
@@ -89,10 +89,11 @@ def batch_env(env, found):
     export_default(env, "KEYBYTE", "0x10")
     export_default(env, "KEYBITS", "0x01")
     export_default(env, "KEYDUR", "150")
-    if found.supported:
+    if found.board_image:
         export_default(env, "TAPS", "0x08443252,0x08443276,0x0842A160,0x084E294E")
         export_default(env, "WORDS", "0x0B054D44 0x0B5125E8 0x09944170 0x09947478")
-    export_default(env, "SNAP", "0x09944000:0x01C40000")
+    if found.board_image:
+        export_default(env, "SNAP", "0x09944000:0x01C40000")
     export_default(env, "FILMN", "8")
     export_default(env, "MOTION_MS", "1500")
     # What load_track.py sees as the settings modal here is first the real MY

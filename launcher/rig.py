@@ -95,14 +95,11 @@ def rig_env(env, tag, ndecks, frames):
     found = sites.find(Layout(), m)
     for name, value in m.rig_env.items():
         export_default(env, name, value)
-    if m.dsp_idle and found.supported:
+    if m.dsp_idle and found.pinned:
         export_default(env, m.dsp_idle_knob, m.dsp_idle)
-    if not found.supported:
-        env["CDJ_SR_SEED_SLOT"] = "0x%08X" % found.get("sr_save_slot") if found.has("sr_save_slot") else "0"
-    if found.has("deck_ready"):
-        export_default(env, "READY_ADDR", "0x%08X" % found.get("deck_ready"))
-    else:
-        export_default(env, "READY_WAIT", "0")
+    sr_seed_slot = found.sr_seed_slot()
+    if sr_seed_slot is not None:
+        env["CDJ_SR_SEED_SLOT"] = sr_seed_slot
     if env.get("NOSOUND", "0") != "1":
         # Ring/prefill/cap 3000/150/450 ms; a narrower band ping-pongs between
         # underruns and trims. The larger buffer rides over a host sink that
@@ -127,7 +124,7 @@ def rig_env(env, tag, ndecks, frames):
     export_default(env, "MEDIA_MODE", "img")
     # The display board's RTOS idle loop at 0x0E510588 becomes a halt, which
     # frees most of a core. The hook checks the opcode first. Empty = no hook.
-    env["CDJ_GUI_IDLE_PC"] = ifset(env, "CDJ_GUI_IDLE_PC", "0x0E51058A" if found.gui_supported else "")
+    env["CDJ_GUI_IDLE_PC"] = ifset(env, "CDJ_GUI_IDLE_PC", "0x0E51058A" if found.gui_pinned else "")
     if host.is_windows():
         export_default(env, "QEMU_BUILD", "/c/qemu-build-mingw")
         export_default(env, "QEMU_EB_BUILD", "/c/qemu-build-mingw-eb")
@@ -144,10 +141,14 @@ def rig_env(env, tag, ndecks, frames):
     own = dsp_module.check(Layout(), m)
     if own.notice and not chosen and (own.path or not env["C66X_JIT"]):
         warn_banner(*own.notice)
-    # The hooks sit at fixed addresses of the supported MAIN.
-    export_default(env, "CDJ_NATIVE_LIBC", "1" if found.supported else "0")
-    if not found.supported:
-        chain.unset(env, "CDJ_NATIVE_COPY")
+    # Both knobs take the routines' addresses; 1 asks for the ones found in this image.
+    if env.get("CDJ_NATIVE_LIBC", "1") in ("", "1"):
+        env["CDJ_NATIVE_LIBC"] = found.native_pcs("native_memcmp", "native_strlen") or "0"
+    if env.get("CDJ_NATIVE_COPY") == "1":
+        env["CDJ_NATIVE_COPY"] = found.native_pcs("native_memcpy", "native_memset", "native_movmem") or "0"
+    if not found.board_image:
+        # The board's status reads of MAIN RAM sit at addresses of the CDJ-2000NXS2 1.87 MAIN.
+        export_default(env, "CDJ_RAM_DIAG", "0")
 
     # Pro DJ Link, on by default. DJLINK=0 turns it off; DJLINK=tap:<adapter>
     # attaches the deck to a host TAP adapter (one deck) instead of the segment.

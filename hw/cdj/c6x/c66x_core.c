@@ -152,7 +152,7 @@ static const struct { const char *name; uint16_t h; } hmap[] = {
 
 c66x_core *c66x_new(const c66x_bus *bus)
 {
-    c66x_core *c = calloc(1, sizeof(*c));
+    c66x_core *c = line_alloc(sizeof(*c));
     if (!c)
         return NULL;
     if (bus)
@@ -223,7 +223,7 @@ void c66x_free(c66x_core *c)
                 if (!r->fpp[p])
                     continue;
                 for (unsigned f = 0; f < 1u << (FP_PAGE_SHIFT - 5); f++)
-                    free(r->fpp[p][f]);
+                    line_free(r->fpp[p][f]);
                 free(r->fpp[p]);
             }
             free(r->fpp);
@@ -234,7 +234,7 @@ void c66x_free(c66x_core *c)
         if (!shared)
             free(r->codepage);
     }
-    free(c);
+    line_free(c);
 }
 
 /* Host buffers are identified by the index of their first mapping, which is

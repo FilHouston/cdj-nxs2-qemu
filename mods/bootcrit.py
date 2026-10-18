@@ -4,6 +4,10 @@ panel, talks to its display and runs its update mode.
 
     usage: bootcrit.py [--model <id>] <main_unpacked.bin> [base]
 
+The image is the unpacked MAIN of the model --model names (the default model,
+the CDJ-2000NXS2, without it), stock or modded; base is the address it starts
+at, the MODEL_MAIN_BASE of that model's profile unless given.
+
 The IPL checks nothing but the 16-bit sum of the packed MAIN, so a mod that
 checksums fine and crashes leaves the deck's own update mode as the only way
 out, and that mode is MAIN code. A patch must therefore never land in a
@@ -122,8 +126,9 @@ def find_all_roots(img, base):
     return roots
 
 
-def closure(img, base=0x08000000, every_task=False):
-    """The Closure of `img`, a MAIN image that starts at address `base`.
+def closure(img, base, every_task=False):
+    """The Closure of `img`, a MAIN image that starts at address `base` (its
+    model's MODEL_MAIN_BASE).
     With every_task the walk starts from every task of the table, not only
     the ones boot, the update and the links need: the set is then all the
     code the firmware can reach, which is what a free span must stay out of."""
@@ -269,6 +274,7 @@ def main():
         img = f.read()
     base = int(args[1], 0) if len(args) == 2 else modelfw.main_base(model)
     c = closure(img, base)
+    print('%s MAIN %s at %#x' % (model, args[0], base))
     print('roots: %s' % ', '.join('%s %#x' % (n, base + d) for n, d in sorted(c.roots.items())))
     print('%d routines, %d bytes, %d ranges, %d indirect calls not followed'
           % (len(c.entries), sum(h - l for l, h in c.ranges), len(c.ranges), c.unresolved))

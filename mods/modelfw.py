@@ -19,12 +19,6 @@ from launcher import model as cdj_model
 
 DEFAULT_MODEL = cdj_model.DEFAULT
 
-# The SH7763 players (CDJ-2000 family) unpack MAIN to DRAM at physical
-# 0x04000000; every SH7724 player's image starts at 0x08000000.
-SH7763_MAIN_BASE = 0x04000000
-MAIN_BASE = 0x08000000
-SH7763_MODELS = ('cdj2000nxs', 'cdj2000', 'cdj900')
-
 
 def update_window_end(model):
     """Where the updater of `model` stops erasing and programming the MAIN
@@ -64,8 +58,8 @@ def model_id(args):
 
 
 def main_base(model):
-    """Address the unpacked MAIN image of `model` starts at."""
-    return SH7763_MAIN_BASE if model in SH7763_MODELS else MAIN_BASE
+    """Address the unpacked MAIN image of `model` starts at, from its profile."""
+    return cdj_model.load(model).main_base
 
 
 def other_files(model):

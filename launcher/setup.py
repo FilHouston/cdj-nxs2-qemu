@@ -19,7 +19,7 @@ already there:
                     that baken (github.com/M-Igashi/baken, MIT) analyses --
                     no rekordbox needed
   5 DSP module      the DSP's hot code compiled to a native module in ~/c14gen
-                    from two 30 s plays of your own firmware (20-40 min; asked,
+                    from two 60 s plays of your own firmware (20-40 min; asked,
                     or skipped with --skip-dsp). Built again when it was made
                     from other code
   6 your setup      one deck or two, Pro DJ Link, audio, a MIDI controller,

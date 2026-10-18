@@ -6,8 +6,8 @@
 # MASTER TEMPO and the tempo fader swept (warm_jit.py).
 #
 #   usage: bash scripts/run/warm_jit.sh [tag=warm] [--dry-run]
-#   env:   PLAY_S=45 (virtual seconds of play after the load; 30 for a
-#          one-window model, which has no sweep), plus any rig.sh
+#   env:   PLAY_S=45 (virtual seconds of play after the load; 60 for a
+#          one-window model, whose play only turns MASTER TEMPO on), plus any rig.sh
 #          knob: MODULE=none, AUTOJIT=0|1, C66X_JIT_PROFILE, ...
 #          DSP_TRAIN_MODULE=<m.so>: run with that module instead of none
 #

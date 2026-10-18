@@ -301,3 +301,85 @@ def test_the_recording_options_are_gone(capsys):
 def test_cdj2000_names_its_idle_loop_for_the_c6727(tree):
     knobs = deck.dsp_env(tree, model.load("cdj2000"), {})
     assert knobs == {"CDJ_C6727_IDLE": "0x80047B80:0x10005000:0x10006600", "C66X_IDLE_ISR_FAST": "1"}
+
+
+def _deck_tree(tree, mid):
+    m = model.load(mid)
+    os.makedirs(os.path.join(tree.extract, mid), exist_ok=True)
+    for name in m.images:
+        open(os.path.join(tree.extract, mid, name), "wb").close()
+    open(tree.usb_image, "wb").close()
+    return m
+
+
+def test_app_dry_run_for_the_cdj2000nxs_shows_the_display_on_vnc_and_the_app(tree, capsys):
+    m = _deck_tree(tree, "cdj2000nxs")
+    app_cmd = ["python", "app/virtual_deck.py", "--model", m.app_face, "--panel-port", "40124"]
+    env = {"MAIN_QEMU": "/q/qemu-system-sh4", "GUI_DISPLAY": "vnc=127.0.0.1:21", "CDJ_PANEL_KEYSOCK": "40124"}
+    assert deck.start(m, env, dry=True, app_cmd=app_cmd) == 0
+    out = capsys.readouterr().out
+    assert "-display vnc=127.0.0.1:21" in out
+    assert "with:       GUI_DISPLAY=vnc=127.0.0.1:21, then python app/virtual_deck.py --model cdj2000nxs" in out
+    assert "virtual deck app are" not in out
+
+
+def test_start_app_for_an_older_deck_passes_the_app_through(tmp_path, monkeypatch):
+    lay = SimpleNamespace(conf=str(tmp_path / "cdj.conf"), emu=EMU, root=str(tmp_path), packaged=False, logs=str(tmp_path))
+    (tmp_path / "cdj.conf").write_text("CDJ_NAME=show\n")
+    monkeypatch.setattr(start, "Layout", lambda: lay)
+    seen = []
+    monkeypatch.setattr(start, "_start_deck", lambda lay, player, c, dry, app=False: seen.append((player.id, app)) or 0)
+    load = model.load
+
+    def without_face(mid):
+        player = load(mid)
+        player.app_face = ""
+        return player
+
+    for mid, argv, want, loader in (("cdj2000nxs", ["--app"], True, load), ("cdj2000nxs", [], False, load),
+                                    ("xdj1000", ["--app"], False, without_face),
+                                    ("cdj2000nxs", ["--no-app"], False, load)):
+        monkeypatch.setattr(model, "load", loader)
+        start.main(["--model", mid, "--dry-run"] + argv)
+        assert seen.pop() == (mid, want)
+
+
+def test_start_app_builds_the_older_decks_app_command(tmp_path, monkeypatch):
+    lay = SimpleNamespace(emu=EMU, packaged=False, logs=str(tmp_path))
+    m = model.load("cdj2000nxs")
+    monkeypatch.setattr(start, "_offer_rebuild", lambda *a: True)
+    monkeypatch.setattr(start, "_app_python", lambda lay, c: ["py"])
+    monkeypatch.setattr(start.host, "pick_port_block", lambda want, n: want)
+    monkeypatch.setattr(start.host, "pick_udp_port", lambda want: want)
+    got = []
+    monkeypatch.setattr(start.deck, "start", lambda m, env, dry, app_cmd: got.append((env, app_cmd)) or 0)
+    start._start_deck(lay, m, {"CDJ_DJLINK": "0", "CDJ_GROUP": "", "CDJ_AUDIO": "0", "CDJ_NAME": "show",
+                               "QEMU_BUILD": "", "QEMU_EB_BUILD": ""}, True, True)
+    env, app_cmd = got[0]
+    assert env["GUI_DISPLAY"] == "vnc=127.0.0.1:21"
+    assert app_cmd[app_cmd.index("--model") + 1] == "cdj2000nxs"
+    assert app_cmd[app_cmd.index("--vnc-base") + 1] == "5920"
+    assert app_cmd[app_cmd.index("--panel-port") + 1] == env["CDJ_PANEL_KEYSOCK"] == "40124"
+
+
+@pytest.mark.parametrize("mid,face", [("cdj2000nxs2", None)])
+def test_the_rig_app_draws_the_players_own_face_when_it_has_one(tmp_path, monkeypatch, mid, face):
+    (tmp_path / "extract").mkdir()
+    images = tmp_path / model.load(mid).extract
+    images.mkdir(parents=True, exist_ok=True)
+    for name in ("main_unpacked.bin", "gui_unpacked.bin", "flash.bin"):
+        (images / name).write_bytes(b"")
+    (tmp_path / "extract" / "usbmedia3.img").write_bytes(b"")
+    (tmp_path / "cdj.conf").write_text("CDJ_NAME=show\n")
+    lay = SimpleNamespace(conf=str(tmp_path / "cdj.conf"), emu=EMU, root=str(tmp_path), packaged=False, logs=str(tmp_path),
+                          extract=str(tmp_path / "extract"), usb_image=str(tmp_path / "extract" / "usbmedia3.img"),
+                          tmp=str(tmp_path))
+    monkeypatch.setattr(start, "Layout", lambda: lay)
+    monkeypatch.setattr(start, "_offer_rebuild", lambda *a: True)
+    monkeypatch.setattr(start, "_app_python", lambda lay, c: ["py"])
+    monkeypatch.setattr(start.host, "pick_port_block", lambda want, n: want)
+    got = []
+    monkeypatch.setattr(start, "run", lambda lay, env, launch, bridge, app_cmd: got.append(app_cmd) or 0)
+    assert start.main(["--model", mid, "--app"]) == 0
+    app_cmd = got[0]
+    assert (app_cmd[app_cmd.index("--model") + 1] if "--model" in app_cmd else None) == face

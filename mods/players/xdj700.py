@@ -14,3 +14,6 @@ MAIN_PROFILE = ImageProfile(
                         b'show data queue info', b'show mail box info'),
               end=b'show mutex info',
               sha256='2e4dc6aa5e8400152e828e99fe4df3116d0c2f7dd5e24223df2dc31e6121e376'))
+
+# The launcher pokes nothing in this player's MAIN (launcher/sites.py).
+LAUNCHER = {}

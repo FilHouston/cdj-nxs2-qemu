@@ -17,7 +17,7 @@ GLIB_LIBS   := $(shell pkg-config --libs gmodule-2.0 2>/dev/null)
 CFLAGS += $(GLIB_CFLAGS)
 SRC     = $(abspath .)
 
-CORE    = c66x_decode.c c66x_image.c c66x_core.c c66x_mem.c c66x_exec.c c66x_step.c c66x_jit.c c66x_native.c
+CORE    = c66x_decode.c c66x_image.c c66x_core.c c66x_mem.c c66x_exec.c c66x_step.c c66x_jit.c c66x_native.c c66x_native_play.c c66x_native_engine.c c66x_native_ring.c c66x_native_levels.c c66x_native_phase.c c66x_native_c6747.c
 CORE_O  = $(patsubst %.c,$(O)/%.o,$(CORE))
 HDRS    = $(wildcard *.h binutils/*.h)
 

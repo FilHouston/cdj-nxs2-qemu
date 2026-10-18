@@ -106,11 +106,29 @@ OVERVIEW_SLOT = (0x0B569528, Anchor(sig=[0x056A, 0x61E2, 0x52E1, 0xE60E, 0xDE54,
 
 # -- what the launcher pokes while it runs the player (launcher/sites.py) ------
 
-load_poke_pc = Anchor(sig=[0xAFDD, 0x426A, 0xE094, 0x600C, 0x02EE, 0x2228], index=4, literal=False)     # 0x082F04D8 the loader's wait branch
-pcall_pc = Anchor(sig=[0x4F22, 0xDE08, 0x60E2, 0xC801, 0x8B05], index=0, literal=False)                  # 0x08345574 the Pro DJ Link start call
-set_flag = Anchor(sig=[0x60D3, 0xDE69, 0xE501, 0xD773, 0x2219, 0x426A], index=3, literal=True)           # 0x08516448 sets an event flag (usb_midi imports it too)
-load_poke_addr = Anchor(sig=[0x6EF6, 0x000B, 0x6DF6, 0xDE38, 0xE1AC], index=3, literal=True, delta=0x94) # 0x0994CC18 the loader's state word
-own_mac = Anchor(sig=[0x000B, 0x006E, 0xD26D, 0x63F2, 0x51F1], index=2, literal=True)                    # 0x0A35F754 the player's own MAC
-deck_ready = Anchor(sig=[0x410B, 0x0009, 0x056A, 0xD63E, 0x2008], index=3, literal=True)                 # 0x0B5125B8 the deck-state word
-colour_capability = Anchor(sig=[0x8B00, 0xE600, 0xEC04, 0xD53D, 0x4C18], index=3, literal=True, delta=0x6)  # 0x0A35FAAA
-sr_save_slot = Anchor(sig=[0x0002, 0x6212, 0xD115, 0x420E, 0x000B], index=2, literal=True)               # 0x0AB87D8C where the RTOS keeps SR
+LAUNCHER = dict(
+    load_poke_pc=Anchor(sig=[0xAFDD, 0x426A, 0xE094, 0x600C, 0x02EE, 0x2228], index=4, literal=False),       # 0x082F04D8 the loader's wait branch
+    pcall_pc=Anchor(sig=[0x4F22, 0xDE08, 0x60E2, 0xC801, 0x8B05], index=0, literal=False),                    # 0x08345574 the Pro DJ Link start call
+    set_flag=Anchor(sig=[0x60D3, 0xDE69, 0xE501, 0xD773, 0x2219, 0x426A], index=3, literal=True),             # 0x08516448 sets an event flag
+    load_poke_addr=Anchor(sig=[0x6EF6, 0x000B, 0x6DF6, 0xDE38, 0xE1AC], index=3, literal=True, delta=0x94),   # 0x0994CC18 the loader's state word
+    own_mac=Anchor(sig=[0x000B, 0x006E, 0xD26D, 0x63F2, 0x51F1], index=2, literal=True),                      # 0x0A35F754 the player's own MAC
+    deck_ready=Anchor(sig=[0x410B, 0x0009, 0x056A, 0xD63E, 0x2008], index=3, literal=True),                   # 0x0B5125B8 the deck-state word
+    colour_capability=Anchor(sig=[0x8B00, 0xE600, 0xEC04, 0xD53D, 0x4C18], index=3, literal=True, delta=0x6),  # 0x0A35FAAA
+    sr_save_slot=Anchor(sig=[0x0002, 0x6212, 0xD115, 0x420E, 0x000B], index=2, literal=True),                 # 0x0AB87D8C where the RTOS keeps SR
+    # The C library routines the machine runs as host code. The head of each is the anchor; memcmp's reaches into
+    # the next routine because a second routine opens with the same 22 halfwords.
+    native_memcmp=Anchor(sig=[0x2668, 0x6763, 0x8D10, 0x6153, 0xA005, 0xE500, 0x6644, 0x6214, 0x3620, 0x8B02,
+                              0x7501, 0x3572, 0x8BF8, 0xE0FF, 0x054C, 0x071C, 0x605C, 0x677C, 0x000B, 0x3078,
+                              0x000B, 0xE000, 0xE218, 0x3622], index=0, literal=False),                       # 0x085336B0
+    native_strlen=Anchor(sig=[0xA001, 0xE500, 0x7501, 0x6643, 0x6260, 0x2228, 0x8FFA, 0x7401, 0x000B, 0x6053],
+                         index=0, literal=False),                                                             # 0x085341C0
+    native_memcpy=Anchor(sig=[0xE218, 0x3622, 0x8F10, 0x6743, 0xA004, 0x0009, 0x6254, 0x76FF, 0x2420, 0x7401,
+                              0x6053, 0xC803], index=0, literal=False),                                       # 0x085336DC
+    native_memset=Anchor(sig=[0x2FE6, 0x6143, 0x346C, 0x6243, 0xE41F, 0x3642, 0x8F1F, 0x6E53, 0x6023, 0xC90F,
+                              0x3608, 0xA002], index=0, literal=False),                                       # 0x08533D50
+    native_movmem=Anchor(sig=[0x2F36, 0xE340, 0x3302, 0x8B4B, 0xD301, 0x033E, 0x432B, 0x0009],
+                         index=0, literal=False),                                                             # 0x08531F88 block copy
+)
+
+# usb_midi raises the same event flag.
+set_flag = LAUNCHER['set_flag']

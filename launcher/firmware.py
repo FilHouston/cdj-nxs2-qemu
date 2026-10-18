@@ -104,6 +104,11 @@ def _installed_sha256(path, mtime_ns, size):
     return sha256(path)
 
 
+def installed_sha256(path):
+    st = os.stat(path)
+    return _installed_sha256(path, st.st_mtime_ns, st.st_size)
+
+
 def differing_images(folder, m):
     """The images installed in `folder` that are not the ones the supported
     update of `m` unpacks to (installed with --any-firmware); an image that is
@@ -112,8 +117,7 @@ def differing_images(folder, m):
     for rel, want in m.expected:
         path = os.path.join(folder, os.path.basename(rel))
         if os.path.isfile(path):
-            st = os.stat(path)
-            if _installed_sha256(path, st.st_mtime_ns, st.st_size) != want:
+            if installed_sha256(path) != want:
                 differ.append(os.path.basename(rel))
     return differ
 

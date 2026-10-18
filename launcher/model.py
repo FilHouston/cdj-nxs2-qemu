@@ -20,7 +20,7 @@ DISPLAY_UPD_IMAGE = "display.upd"
 # reports it: the first field a profile leaves out, not every one of them.
 REQUIRED = ("MODEL_TITLE", "MODEL_MAIN_MACHINE", "MODEL_EXTRACT", "MODEL_FW_VERSION",
             "MODEL_UPD", "MODEL_UPD_SHA256", "MODEL_MAIN_SECTION", "MODEL_MAIN_LZSS",
-            "MODEL_FW_STEPS")
+            "MODEL_MAIN_BASE", "MODEL_FW_STEPS")
 
 # A field starts at the beginning of a line; its value runs to the next one
 # (or the end of the file), which lets MODEL_EXPECTED hold several lines
@@ -77,17 +77,22 @@ class Model:
         self.main_section = values["MODEL_MAIN_SECTION"]
         self.gui_section = values.get("MODEL_GUI_SECTION") or "1"
         self.main_lzss = values["MODEL_MAIN_LZSS"]
+        self.main_base = int(values["MODEL_MAIN_BASE"], 0)
+        self.ram_snapshot = values.get("MODEL_RAM_SNAPSHOT", "")
         self.update_window_end = int(values["MODEL_UPDATE_WINDOW_END"], 0) if values.get("MODEL_UPDATE_WINDOW_END") else None
         self.fw_steps = values["MODEL_FW_STEPS"].split()
         self.display_upd = values.get("MODEL_DISPLAY_UPD", "")
         self.display_flash = values.get("MODEL_DISPLAY_FLASH", "")
         self.launch = values.get("MODEL_LAUNCH") or "rig"
+        self.app_face = values.get("MODEL_APP_FACE", "")
         self.dsp_idle = values.get("MODEL_DSP_IDLE", "")
         self.dsp_idle_knob = values.get("MODEL_DSP_IDLE_KNOB") or "CDJ_C6747_IDLE"
         self.dsp_isr_fast = values.get("MODEL_DSP_ISR_FAST", "")
+        self.dsp_mhz = values.get("MODEL_DSP_MHZ", "")
         self.dsp_gen_args = values.get("MODEL_DSP_GEN_ARGS", "")
         self.idle_s = values.get("MODEL_IDLE_S", "")
         self.load_steps = values.get("MODEL_LOAD_STEPS", "")
+        self.profile_steps = values.get("MODEL_PROFILE_STEPS", "")
         self.tablet_peer = values.get("MODEL_TABLET_PEER") == "1"
         self.rig_env = dict(w.split("=", 1) for w in values.get("MODEL_RIG_ENV", "").split())
         self.expected = tuple(tuple(line.split(None, 1))

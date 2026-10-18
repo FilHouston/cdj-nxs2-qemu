@@ -177,8 +177,10 @@ MAIN_ALL = ["wave3data", "wave3detail", "wave3ovdata", "wave3ovfetch", "phrasefe
             "abletonlink", "abletonlinkpong", "osc", "oscbeat", "tcnet", "tcnettime", "tcnetdata",
             "usbmidi", "usbmiditick"]
 
-# SHA-256 of what patch_main.py / patch_gui.py wrote for these selections
-# before the framework knew about models.
+# SHA-256 of what patch_main.py / patch_gui.py write for these selections. The
+# routines are laid out for the whole registry, so a new NXS2 MAIN routine
+# moves the ones sorted after it and every trampoline: the MAIN pins change
+# with it and the display ones do not.
 PINNED = [
     ("main_unpacked.bin", patch_main, MAIN_ALL,
      "8251fa2b78fc25679fc465ec24b27ae297980562d9ba2da5553a0e7f14c589c1"),

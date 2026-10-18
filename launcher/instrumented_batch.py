@@ -23,14 +23,14 @@ snapshots per run, so clean /tmp afterwards.
 import os
 import subprocess
 
-from . import chain, host, sites
+from . import chain, host, model, sites
 from .chain import export_default, nonempty
 from .layout import Layout
 
 TAPS = "0x082FBA6E,0x082FBAB6,0x082FBAD8,0x082FBE56,0x082FC216,0x082FFEBC,0x082FFEC0,0x0842B218,0x0842A160"
 
 
-def batch_env(env, found):
+def batch_env(env, found, m):
     chain.unset(env, "CDJ_MWATCH", "CDJ_FWDUMP", "CDJ_MPOKE", "CDJ_PPOKE_N")
     # DUMP, WATCH and MPOKE pass CDJ_FWDUMP, CDJ_MWATCH and CDJ_MPOKE through;
     # the unset above only drops stale exports.
@@ -46,19 +46,20 @@ def batch_env(env, found):
     else:
         env["CDJ_PPOKE"] = "0x%08x:0x%08X:%s:0%s" % (found.get("load_poke_pc"), found.get("load_poke_addr"),
                                                      nonempty(env, "W1", "1"), "," + ppokex if ppokex else "")
-    # The default taps are addresses of the supported update; a trace of
+    # The default taps are addresses of the CDJ-2000NXS2 1.87 MAIN; a trace of
     # another image has to name its own.
-    if found.supported or env.get("LOGPCS"):
+    if found.board_image or env.get("LOGPCS"):
         env["CDJ_FWLOG"] = nonempty(env, "LOGPCS", "0x0853410C,0x084933F4")
     else:
         chain.unset(env, "CDJ_FWLOG")
-    if found.supported or env.get("TAPS"):
+    if found.board_image or env.get("TAPS"):
         env["CDJ_FWTRACE"] = nonempty(env, "TAPS", TAPS)
     else:
         chain.unset(env, "CDJ_FWTRACE")
     env["MAIN_MON"] = "1"
-    # SNAP=none takes no snapshots (each memsave holds the machine while it copies).
-    env["RAMSNAP"] = nonempty(env, "SNAP", "0x09947000:0x01713000")
+    # SNAP=none takes no snapshots (each memsave holds the machine while it
+    # copies), and neither does a model whose profile names no region.
+    env["RAMSNAP"] = nonempty(env, "SNAP", m.ram_snapshot or "none")
     if env["RAMSNAP"] == "none":
         env["RAMSNAP"] = ""
     # Defaults only, so a caller's key is the key that gets pressed.
@@ -79,7 +80,8 @@ def main(argv):
     n = argv[1] if len(argv) > 1 else "9"
     lay = Layout()
     env = dict(os.environ)
-    batch_env(env, sites.find(lay))
+    m = model.load()
+    batch_env(env, sites.find(lay, m), m)
 
     # A checkout may vet the tap list before a batch: $CDJ_ROOT/.cdj/preflight,
     # if present, gets the taps as its argument. Advisory only; PREFLIGHT=0

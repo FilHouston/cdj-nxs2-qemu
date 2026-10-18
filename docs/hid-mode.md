@@ -36,6 +36,31 @@ reached HID mode. On Linux, drop `--monitor` to create a real HID device
 (`/dev/uhid`) that a Linux DJ app (e.g. Mixxx) can open; `--name` sets the product
 string the host matches the model on (default `CDJ-2000NXS2`).
 
+## Windows: attach the deck over USB/IP
+
+On Windows the deck can be attached as a real USB device, so the desktop's own
+drivers and programs see it. `scripts/net/usbip_server.py` takes the other end of
+the relay and speaks USB/IP to the client from
+[usbip-win2](https://github.com/vadimgrn/usbip-win2):
+
+```
+deck (CDJ_USBF_HOST) -- UDP 27020 -- usbip_server.py -- USB/IP, TCP 3240 -- usbip-win2
+```
+
+1. Plug the DJ-202 in, or whatever controller your software expects to find. Start
+   the deck with `CDJ_USBF_HOST=27020` and set **LINK > CONTROL MODE > USB MIDI**
+   on it first. The deck has to be in control mode before the client attaches.
+2. Start the server: `python3 scripts/net/usbip_server.py`
+3. Attach: `usbip.exe attach -r 127.0.0.1 -b 1-1`
+
+The server runs the client's control transfers (the HID report descriptor,
+SET_IDLE, string descriptors) on the deck itself and answers the configuration
+requests on its own, because the deck's built-in host has configured it already.
+`--log FILE` (add `--payloads` for the bytes) records every report the desktop
+sends.
+
+The HID report descriptor the NXS2 reports is 52 bytes.
+
 ## Status
 
 | | |
