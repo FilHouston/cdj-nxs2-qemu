@@ -927,6 +927,27 @@ of `deck_smoke.py` it restores each deck's loaded point and checks that the
 playhead moves (`deck_smoke.py --snapshot`). The first run saves the points,
 so it takes as long as `decks2`; after that a deck takes a minute and a half.
 
+### Checking a modified image against stock
+
+```sh
+python scripts/test/mod_check.py --model cdj900nxs my_main.bin /tmp/check \
+    --allow 131,144,662,262
+```
+
+`mod_check.py` runs a modified MAIN image beside the installed stock one, on
+one-window decks, and compares their screens. All three runs (the image once,
+stock twice) go through the same steps: the idle screen, the browser up to the
+loaded track (the profile's `MODEL_LOAD_STEPS`), the next track loaded while the
+deck is paused, TIME MODE, UTILITY, INFO and TAG LIST. Keys are pressed by name through the
+model's face, so a point whose key the face does not wire is skipped. Every
+picture is taken where the deck stands still; where the two stock runs still
+disagree (a blinking digit, the stick's access lamp) is not judged. The image
+passes when it matches stock everywhere else, apart from the `--allow`
+regions the change is meant to touch. Stock boots once to its idle point and is
+saved there; both stock runs restore that save, and later checks reuse it.
+`<out>/summary.txt` gives a verdict per picture and `<out>/diff/` marks every
+difference.
+
 <details>
 <summary><b>📁 Repository layout</b></summary>
 
@@ -952,7 +973,7 @@ so it takes as long as `decks2`; after that a deck takes a minute and a half.
 | `scripts/net/` | the Pro DJ Link segment: DHCP server, capture, capture scorer, and `tap_setup.ps1` for the [TAP adapter](#rekordbox-ableton) |
 | `midi/` | the MIDI controller bridge, controller profiles, mappings and the learn tool |
 | `app/` | the [virtual deck app](#virtual-deck): the drawn player around the emulated screen |
-| `tests/`, `scripts/test/` | the offline unit tests (`python -m pytest tests`, no firmware needed) and the quick check: `scripts/test/quick.sh` runs them beside a replay of DSP recordings and a headless boot of each deck to its first stable screen (`deck_smoke.py`), in a couple of minutes |
+| `tests/`, `scripts/test/` | the offline unit tests (`python -m pytest tests`, no firmware needed) and the quick check: `scripts/test/quick.sh` runs them beside a replay of DSP recordings and a headless boot of each deck to its first stable screen (`deck_smoke.py`), in a couple of minutes; `mod_check.py` compares a modified MAIN image's screens with stock |
 | `docs/img/` | the screenshots on this page |
 
 The board sources are copied into the QEMU tree on every build; edit them here,
