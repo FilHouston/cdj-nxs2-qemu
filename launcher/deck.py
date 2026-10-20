@@ -43,12 +43,13 @@ def missing_images(lay, m):
     return [m.extract + "/" + n for n in m.images if not os.path.isfile(os.path.join(folder, n))]
 
 
-def dsp_env(lay, m, env):
+def dsp_env(lay, m, env, found=None):
     """The DSP knobs a model's profile sets: the busy-wait loop the core skips,
     the interrupt fast path, and the module built by build_dsp_module.sh (when its
-    stamp fits) unless MODULE=none or C66X_JIT names one by hand."""
+    stamp fits) unless MODULE=none or C66X_JIT names one by hand. `found` is the
+    sites of the MAIN image that runs (sites.find), the installed one's when None."""
     knobs = {}
-    if sites.find(lay, m).pinned:
+    if (found or sites.find(lay, m)).pinned:
         knobs[m.dsp_idle_knob] = nonempty(env, m.dsp_idle_knob, m.dsp_idle)
         if m.dsp_isr_fast:
             knobs["C66X_IDLE_ISR_FAST"] = nonempty(env, "C66X_IDLE_ISR_FAST", m.dsp_isr_fast)
@@ -86,24 +87,26 @@ def patched_kernel(lay, m, env, kernel):
     return patched
 
 
-def command(lay, m, env):
+def command(lay, m, env, main=None):
     """(argv, env) of the player's QEMU. The stick is a snapshot, so the
-    firmware's writes to it never reach the image."""
+    firmware's writes to it never reach the image. `main` runs another MAIN
+    image in place of the installed one, with the sites found in it."""
     folder = model.extract_dir(lay, m)
     env = dict(env)
     env["CDJ_ATA"] = "1"
-    sr_seed_slot = sites.find(lay, m).sr_seed_slot()
+    found = sites.find(lay, m, main)
+    sr_seed_slot = found.sr_seed_slot()
     if sr_seed_slot is not None:
         env["CDJ_SR_SEED_SLOT"] = sr_seed_slot
     if m.has_dsp_module:
-        env.update(dsp_env(lay, m, env))
+        env.update(dsp_env(lay, m, env, found))
     if m.display_upd:
         env["CDJ_BF531_UPD"] = host.native(os.path.join(folder, model.DISPLAY_UPD_IMAGE))
     if m.display_flash:
         env["CDJ_M16C_GUI"] = host.native(os.path.join(folder, m.display_flash))
     env["CDJ_PANEL_KEYSOCK"] = nonempty(env, "CDJ_PANEL_KEYSOCK", str(host.pick_udp_port(PANEL_KEY_PORT)))
     argv = [main_qemu(lay, env), "-M", m.main_machine, "-name", m.title,
-            "-kernel", host.native(patched_kernel(lay, m, env, os.path.join(folder, "main_unpacked.bin"))),
+            "-kernel", host.native(patched_kernel(lay, m, env, main or os.path.join(folder, "main_unpacked.bin"))),
             "-serial", "file:" + os.path.join(lay.logs, m.id + ".log"),
             "-drive", "if=none,id=usbstk,file=%s,format=raw,snapshot=on" % host.native(lay.usb_image),
             "-device", "usb-storage,drive=usbstk,port=1"]
