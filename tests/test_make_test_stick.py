@@ -266,6 +266,7 @@ def test_a_whole_run_hands_baken_the_xml_and_images_its_export(tmp_path, monkeyp
     out, image = tmp_path / "work", tmp_path / "stick.img"
     (out / "audio").mkdir(parents=True)
     (out / "audio" / "stale.mp3").write_bytes(b"old")
+    (out / "summary.txt").write_text("an earlier run")
     rc = mts.main(["--out", str(out), "--image", str(image), "--baken", str(fake), "--size-mb", "32"])
     assert rc == 0, capsys.readouterr().err
 
@@ -300,6 +301,23 @@ def test_a_spec_file_is_used_and_a_bad_one_refused(tmp_path, monkeypatch, capsys
     broken = tmp_path / "broken.json"
     broken.write_text("{")
     assert mts.main(["--spec", str(broken), "--baken", str(fake)]) == 2
+
+
+def test_a_folder_it_did_not_make_is_left_alone_without_force(tmp_path, monkeypatch, capsys):
+    fake, record = _fake_baken(tmp_path)
+    monkeypatch.setattr(mts, "render_audio", _fake_render)
+    monkeypatch.setattr(mts, "have_ffmpeg", lambda: True)
+    out = tmp_path / "mine"
+    (out / "audio").mkdir(parents=True)
+    (out / "audio" / "song.mp3").write_bytes(b"keep")
+    assert mts.main(["--out", str(out), "--baken", str(fake)]) == 2
+    assert "--force" in capsys.readouterr().err
+    assert (out / "audio" / "song.mp3").read_bytes() == b"keep"
+    assert not record.exists()
+
+    monkeypatch.setattr(mts, "run", lambda argv, what: False)
+    assert mts.main(["--out", str(out), "--baken", str(fake), "--force"]) == 1
+    assert not (out / "audio" / "song.mp3").exists()
 
 
 def test_print_spec_is_a_spec_that_checks(capsys):

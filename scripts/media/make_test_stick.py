@@ -46,6 +46,12 @@ image, by default extract/teststick.img. The two-deck rig takes it with
   MEDIA_IMG_SRC=extract/teststick.img ./start.sh
 A one-window deck always uses extract/usbmedia3.img: pass --image with that
 path to replace it (./setup.sh --music or --tracks makes your own again).
+An --out folder that is not empty and holds no collection.xml or summary.txt
+of an earlier run is refused, since its audio/ and device/ are replaced;
+--force uses it anyway.
+
+The tracks are MP3, and LAME puts about 25 ms of padding before the first
+sample: a deck that does not skip it plays the whole grid that much late.
 
 Needs ffmpeg with libmp3lame, pyfatfs in this Python (requirements.txt), and
 baken: --baken, else the copy ./setup.sh fetched into tools/baken/ or one on
@@ -267,6 +273,13 @@ def find_baken(explicit=None):
     return baken.ensure(Console(dry=False, interactive=stdin_is_tty()), Layout(), setup.Options())
 
 
+def made_here(out):
+    """Whether --out is missing, empty or left by an earlier run."""
+    if not os.path.isdir(out) or not os.listdir(out):
+        return True
+    return any(os.path.isfile(os.path.join(out, n)) for n in ("collection.xml", "summary.txt"))
+
+
 def default_paths():
     extract = Layout().extract
     return os.path.join(extract, "teststick"), os.path.join(extract, "teststick.img")
@@ -280,6 +293,8 @@ def main(argv=None):
     ap.add_argument("--size-mb", type=int, help="image size (default: as ./setup.sh sizes a stick)")
     ap.add_argument("--baken", help="the baken binary (default: as ./setup.sh finds it)")
     ap.add_argument("--print-spec", action="store_true", help="print the built-in spec and stop")
+    ap.add_argument("--force", action="store_true",
+                    help="use an --out folder that is not one of this tool's")
     args = ap.parse_args(argv)
 
     if args.print_spec:
@@ -304,6 +319,10 @@ def main(argv=None):
     out, image = default_paths()
     out = os.path.abspath(args.out or out)
     image = os.path.abspath(args.image or image)
+    if not args.force and not made_here(out):
+        sys.stderr.write("%s is not empty and not a test stick folder; --force replaces its "
+                         "audio/ and device/\n" % out)
+        return 2
     baken_bin = find_baken(args.baken)
     if not baken_bin:
         sys.stderr.write("no baken at %s\n" % args.baken if args.baken else "no baken\n")
