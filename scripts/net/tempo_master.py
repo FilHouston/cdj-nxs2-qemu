@@ -63,8 +63,8 @@ master flag.
 
 Packet layouts: the public Pro DJ Link research by Deep Symmetry, "DJ Link
 Ecosystem Analysis" (https://djl-analysis.deepsymmetry.org/). The status
-packet is the 0xd4-byte form of the nexus generation, which the NXS2 decks
-also accept from nexus players on a mixed network.
+packet is the 0xd4-byte form of the nexus generation. The CDJ-900NXS takes
+it; whether the NXS2 and XDJ decks do has not been checked.
 """
 import argparse
 import collections
