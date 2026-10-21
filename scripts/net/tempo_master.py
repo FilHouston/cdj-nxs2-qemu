@@ -77,7 +77,7 @@ import struct
 import sys
 import time
 
-from link_probe import arp_reply, join_group, split_group, udp_frame
+from link_probe import arp_reply, beat_fields, join_group, split_group, udp_frame
 from score_link import MAGIC, parse
 
 ANNOUNCE_PORT, BEAT_PORT, STATUS_PORT = 50000, 50001, 50002
@@ -198,8 +198,8 @@ def parse_beat(payload):
     """The fields of a beat packet, or None."""
     if len(payload) < BEAT_SIZE or payload[:10] != MAGIC or payload[10] != BEAT:
         return None
-    return Beat(payload[0x21], struct.unpack_from('>I', payload, 0x24)[0], struct.unpack_from('>I', payload, 0x54)[0],
-                struct.unpack_from('>H', payload, 0x5a)[0] / 100.0, payload[0x5c])
+    bpm, pitch, in_bar, player = beat_fields(payload)
+    return Beat(player, struct.unpack_from('>I', payload, 0x24)[0], pitch, bpm / 100.0, in_bar)
 
 
 def parse_status(payload):
