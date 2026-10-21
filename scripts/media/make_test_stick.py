@@ -68,7 +68,7 @@ for _p in (HERE, ROOT):
 
 import collection_xml  # noqa: E402
 from launcher import baken, setup  # noqa: E402
-from launcher.console import Console  # noqa: E402
+from launcher.console import Console, stdin_is_tty  # noqa: E402
 from launcher.layout import Layout  # noqa: E402
 
 RATE = 44100
@@ -259,12 +259,12 @@ def summary(spec):
 
 
 def find_baken(explicit=None):
-    """baken as ./setup.sh finds it (tools/baken/, then PATH), or fetched
-    into tools/baken/ the same way; None when that fails too."""
+    """baken as ./setup.sh finds it (tools/baken/, then PATH), or fetched or
+    cargo-installed the same way; None, with the reason printed, when that
+    fails too."""
     if explicit:
         return explicit if os.path.isfile(explicit) else None
-    lay = Layout()
-    return baken.find(lay) or baken.fetch(Console(dry=False, interactive=False), lay)
+    return baken.ensure(Console(dry=False, interactive=stdin_is_tty()), Layout(), setup.Options())
 
 
 def default_paths():
@@ -306,8 +306,7 @@ def main(argv=None):
     image = os.path.abspath(args.image or image)
     baken_bin = find_baken(args.baken)
     if not baken_bin:
-        sys.stderr.write("no baken: run ./setup.sh --tracks <folder> once, pass --baken, "
-                         "or install it with 'cargo install baken'\n")
+        sys.stderr.write("no baken at %s\n" % args.baken if args.baken else "no baken\n")
         return 1
 
     audio_dir, device = os.path.join(out, "audio"), os.path.join(out, "device")
