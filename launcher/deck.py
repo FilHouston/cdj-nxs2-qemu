@@ -133,6 +133,20 @@ def command(lay, m, env, main=None):
     return argv, env
 
 
+def point_dir(tmp, argv, env, media, point, left_out=()):
+    """Where a deck started with (argv, env) from command() keeps a saved
+    point: keyed by its QEMU, MAIN and display images, stick, DSP module,
+    MAIN_ARGS and sound device, and the knobs of command() a caller left out."""
+    kernel = argv[argv.index("-kernel") + 1]
+    files = [argv[0], kernel] + [env[k] for k in ("CDJ_BF531_UPD", "CDJ_M16C_GUI") if k in env] + [media]
+    # The sound device and the DSP module shape the machine as well.
+    if os.path.isfile(env.get("C66X_JIT", "")):
+        files.append(env["C66X_JIT"])
+    audio = argv[argv.index("-audio") + 1] if "-audio" in argv else ""
+    options = env.get("MAIN_ARGS", "") + " " + audio + "".join(" -" + k for k in sorted(left_out))
+    return os.path.join(snapshot.root(tmp, files, options), point)
+
+
 def plan_snapshot(lay, m, argv, env):
     """Adds what SNAPSHOT asks for to argv. Returns the argv of the driver that
     reaches and saves the point, or None when there is nothing to save."""
@@ -143,23 +157,16 @@ def plan_snapshot(lay, m, argv, env):
         raise SystemExit("SNAPSHOT point %r: known points are %s" % (point, ", ".join(snapshot.POINTS)))
     if not (m.idle_s and m.load_steps):
         raise SystemExit("SNAPSHOT: models/%s.conf sets no MODEL_IDLE_S and MODEL_LOAD_STEPS to reach a point" % m.id)
-    kernel = argv[argv.index("-kernel") + 1]
-    files = [argv[0], kernel] + [env[k] for k in ("CDJ_BF531_UPD", "CDJ_M16C_GUI") if k in env] + [lay.usb_image]
-    # The sound device and the DSP module shape the machine as well.
-    if os.path.isfile(env.get("C66X_JIT", "")):
-        files.append(env["C66X_JIT"])
-    audio = argv[argv.index("-audio") + 1] if "-audio" in argv else ""
-    point_dir = os.path.join(snapshot.root(lay.tmp, files, env.get("MAIN_ARGS", "") + " " + audio), point)
-    if snapshot.saved(point_dir, ("main.vm",)):
-        argv += ["-incoming", "file:%s/main.vm" % host.native(point_dir)]
-        say("starting from the saved '%s' point %s" % (point, host.native(point_dir)))
+    where = point_dir(lay.tmp, argv, env, lay.usb_image, point)
+    if snapshot.saved(where, ("main.vm",)):
+        argv += snapshot.restore_args(where)
+        say("starting from the saved '%s' point %s" % (point, host.native(where)))
         return None
     mon = "%s/cdj-deck-%s-mon.sock" % (lay.tmp, m.id)
-    # A state that records "paused" comes back paused: the save stops the deck.
-    argv += ["-monitor", _monsock(lay).spec(mon), "-global", "migration.store-global-state=off"]
+    argv += ["-monitor", _monsock(lay).spec(mon)] + snapshot.SAVE_ARGS
     env.update({"MODEL_IDLE_S": m.idle_s, "MODEL_LOAD_STEPS": m.load_steps})
     say("no saved '%s' point yet: the deck boots and saves it on the way" % point)
-    return host.python_argv() + [os.path.join(lay.run, "snapshot_deck.py"), "--reach", point, mon, point_dir]
+    return host.python_argv() + [os.path.join(lay.run, "snapshot_deck.py"), "--reach", point, mon, where]
 
 
 def start(m, env, dry, app_cmd=()):

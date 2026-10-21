@@ -18,11 +18,14 @@ the change is meant to touch (--allow).
 Each run is the deck ./start.sh starts (launcher/deck.py), headless and
 without sound, with the image under test in place of the installed MAIN and
 the sites the launcher pokes looked up in that image (launcher/sites.py).
-Stock is booted once to the model's idle point (MODEL_IDLE_S after its
-monitor comes up) and saved there; both stock runs restore that save, and
-later checks reuse it while the QEMU binary, the stock image, the stick, the
-DSP module and the deck's knobs stay the same (launcher/snapshot.py). --fresh
-boots and saves it again. The image under test always boots.
+Knobs the image under test runs without (the pinned-only ones, when not all
+its sites are found) are left out of the stock runs too. Stock is booted
+once to the model's idle point (MODEL_IDLE_S after its monitor comes up) and
+saved there; both stock runs restore that save. It is the point
+SNAPSHOT=idle NOSOUND=1 ./start.sh keeps (launcher/deck.py point_dir), so
+either reuses the other's while the QEMU binary, the stock image, the stick
+and the DSP module stay the same. --fresh boots and saves it again. The
+image under test always boots.
 
 The steps: the idle screen; the profile's MODEL_LOAD_STEPS, with a picture
 after every wait but the last (the track then plays); PLAY/PAUSE, then
@@ -74,6 +77,7 @@ for _p in (EMU, os.path.join(EMU, "scripts", "run")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import snapshot_deck  # noqa: E402
 from launcher import deck, firmware, host, model, sites, snapshot  # noqa: E402
 from launcher.layout import Layout  # noqa: E402
 
@@ -130,16 +134,10 @@ def load_steps(text):
     last: until then the deck waits on a still screen (the browser, a list),
     after the last one the loaded track plays (the 'loaded' point of
     launcher/snapshot.py)."""
-    parsed = []
-    for words in (s.split() for s in text.split(";") if s.strip()):
-        if words[0] == "wait" and len(words) == 2:
-            parsed.append(("wait", float(words[1])))
-        elif words[0] == "key" and len(words) == 2:
-            parsed.append(("key", words[1]))
-        elif words[0] == "sendkey" and len(words) in (2, 3):
-            parsed.append(("sendkey", words[1], int(words[2]) if len(words) == 3 else 100))
-        else:
-            raise CheckError("MODEL_LOAD_STEPS: cannot read step %r" % " ".join(words))
+    try:
+        parsed = snapshot_deck.parse_steps(text)
+    except ValueError as e:
+        raise CheckError(str(e))
     last_wait = max([i for i, s in enumerate(parsed) if s[0] == "wait"], default=-1)
     steps = []
     for i, s in enumerate(parsed):
@@ -383,27 +381,14 @@ def knobs(env, before):
     return {k: v for k, v in env.items() if before.get(k) != v and k != "CDJ_PANEL_KEYSOCK"}
 
 
-def point_dir(tmp, argv, env_knobs, kernel, media):
-    """Where the stock idle point is saved: keyed by everything that shapes
-    the machine, so another QEMU, image, stick, module or knob starts a fresh
-    one (QEMU refuses a state from another machine)."""
-    files = [argv[0], kernel, media]
-    for k in ("C66X_JIT", "CDJ_BF531_UPD", "CDJ_M16C_GUI"):
-        if os.path.isfile(env_knobs.get(k, "")):
-            files.append(env_knobs[k])
-    machine = argv[argv.index("-M") + 1] if "-M" in argv else ""
-    options = "mod_check %s %s" % (machine, " ".join("%s=%s" % kv for kv in sorted(env_knobs.items())))
-    return os.path.join(snapshot.root(tmp, files, options), "idle")
-
-
 def run_argv(argv, mon_spec, restore=None, save=False):
-    """The deck's argv with its monitor, and the restore or the setting a
-    save needs (a state that records "paused" comes back paused)."""
+    """The deck's argv with its monitor, and the restore from the point
+    folder `restore` or the setting a save needs."""
     a = list(argv) + ["-monitor", mon_spec]
     if restore:
-        a += ["-incoming", "file:%s" % host.native(restore).replace("\\", "/")]
+        a += snapshot.restore_args(restore)
     elif save:
-        a += ["-global", "migration.store-global-state=off"]
+        a += snapshot.SAVE_ARGS
     return a
 
 
@@ -453,13 +438,12 @@ class Run:
 
     def _go(self):
         import cdj_monsock
-        import snapshot_deck
         restore = self.restore
         if self.wait_for is not None:
             if not self.wait_for.wait(SAVE_WAIT_S):
                 self.error = "the stock idle point was not saved in time"
                 return
-            restore = restore if snapshot.saved(os.path.dirname(restore), ("main.vm",)) else None
+            restore = restore if snapshot.saved(restore, ("main.vm",)) else None
         os.makedirs(self.outdir, exist_ok=True)
         argv = run_argv(self.argv, cdj_monsock.spec(self.mon), restore, bool(self.save_to))
         with open(os.path.join(self.outdir, "qemu.log"), "wb") as log:
@@ -480,7 +464,7 @@ class Run:
                     else:
                         self.started = "booted, the save FAILED"
                     self.saved.set()
-            self._steps(snapshot_deck)
+            self._steps()
         finally:
             self._stop(cdj_monsock)
 
@@ -500,23 +484,17 @@ class Run:
         self.error = "not running %d s after the restore" % RESTORE_TIMEOUT_S
         return False
 
-    def _steps(self, snapshot_deck):
+    def _steps(self):
         for step in self.steps:
             if self.q.poll() is not None:
                 self.error = "QEMU exited %d" % self.q.returncode
                 return
-            if step[0] == "wait":
-                time.sleep(step[1])
-            elif step[0] == "key":
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                    s.sendto(step[1].encode(), ("127.0.0.1", self.keyport))
-            elif step[0] == "sendkey":
-                import cdj_monsock
-                cdj_monsock.command(self.mon, "sendkey %s %d" % (step[1], step[2]))
-            elif step[0] == "shot":
-                self._shoot(snapshot_deck, step[1])
+            if step[0] == "shot":
+                self._shoot(step[1])
+            else:
+                snapshot_deck.do_step(self.mon, step, self.keyport)
 
-    def _shoot(self, snapshot_deck, name):
+    def _shoot(self, name):
         from PIL import Image
         for i in range(FRAMES):
             if i:
@@ -615,9 +593,16 @@ def main(argv=None):
     for name in RUNS:
         commands[name] = deck.command(RunLayout(media, os.path.join(outdir, name)), m, before,
                                       main=image if name == "image" else stock)
-    stock_knobs = knobs(commands["stock1"][1], before)
     image_knobs = knobs(commands["image"][1], before)
-    point = point_dir(lay.tmp, commands["stock1"][0], stock_knobs, stock, media)
+    # The knobs the image under test runs without (the pinned-only ones when
+    # not all its sites are found) are left out of stock too, so the image is
+    # the only difference between the runs.
+    left_out = sorted(set(knobs(commands["stock1"][1], before)) - set(image_knobs))
+    for name in RUNS[1:]:
+        for k in left_out:
+            del commands[name][1][k]
+    stock_knobs = knobs(commands["stock1"][1], before)
+    point = deck.point_dir(lay.tmp, commands["stock1"][0], commands["stock1"][1], media, "idle", left_out)
     have_point = not args.fresh and snapshot.saved(point, ("main.vm",))
     saved = threading.Event()
     runs = []
@@ -626,7 +611,7 @@ def main(argv=None):
         if name == "stock1" and not have_point:
             kw = {"save_to": point, "saved": saved}
         elif name != "image":
-            kw = {"restore": os.path.join(point, "main.vm"), "wait_for": None if have_point else saved}
+            kw = {"restore": point, "wait_for": None if have_point else saved}
         mon = os.path.join(lay.tmp, "cdj-modcheck-%d-%s-mon.sock" % (os.getpid(), name))
         argv_q, env = commands[name]
         runs.append(Run(name, argv_q, env, os.path.join(outdir, name), mon, ports[i], steps, float(m.idle_s), **kw))
@@ -659,6 +644,9 @@ def main(argv=None):
     for name, found in (("image under test", sites.find(lay, m, image)), ("stock", sites.find(lay, m))):
         for line in found.switched_off(m):
             lines.append("left out for the %s: %s" % (name, line))
+    if left_out:
+        lines.append("left out for stock too, as the image under test runs without them: %s"
+                     % ", ".join(left_out))
     differ = sorted(k for k in set(image_knobs) | set(stock_knobs) if image_knobs.get(k) != stock_knobs.get(k))
     if differ:
         lines.append("knobs that differ between the image under test and stock: %s" % ", ".join(differ))

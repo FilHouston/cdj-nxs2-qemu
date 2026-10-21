@@ -13,7 +13,7 @@ from helpers import path
 
 sys.path.insert(0, path("scripts", "test"))
 import mod_check  # noqa: E402
-from launcher import host, model  # noqa: E402
+from launcher import deck, host, model  # noqa: E402
 
 Image = pytest.importorskip("PIL.Image")
 ImageDraw = pytest.importorskip("PIL.ImageDraw")
@@ -66,6 +66,8 @@ def test_load_steps_without_a_wait_get_no_picture():
 def test_an_unreadable_load_step_stops_the_check():
     with pytest.raises(mod_check.CheckError, match="cannot read step"):
         mod_check.load_steps("press usb; wait 3")
+    with pytest.raises(mod_check.CheckError, match="cannot read step"):
+        mod_check.load_steps("wait soon")
 
 
 ALL_KEYS = ("PLAY/PAUSE", "BROWSE", "ROTARY PUSH", "TIME MODE", "MENU", "INFO", "TAG LIST")
@@ -258,29 +260,26 @@ def test_the_stock_point_follows_everything_that_shapes_the_machine(tmp_path):
         files[name] = tmp_path / name
         files[name].write_bytes(name.encode())
     argv = [str(files["qemu"]), "-M", "cdj900nxs", "-kernel", str(files["stock"])]
-    knobs = {"CDJ_ATA": "1", "C66X_JIT": str(files["m.so"])}
+    env = {"CDJ_ATA": "1", "C66X_JIT": str(files["m.so"])}
 
-    def point(**kw):
-        a = dict(tmp=str(tmp_path), argv=argv, env_knobs=knobs, kernel=str(files["stock"]), media=str(files["stick"]))
-        a.update(kw)
-        return mod_check.point_dir(**a)
+    def point(media=str(files["stick"]), left_out=()):
+        return deck.point_dir(str(tmp_path), argv, env, media, "idle", left_out)
 
     p = point()
     assert p == point() and os.path.basename(p) == "idle" and p.startswith(str(tmp_path))
     assert point(media=str(files["stick2"])) != p
-    assert point(env_knobs=dict(knobs, CDJ_C6747_IDLE="0x1")) != p
+    assert point(left_out=["CDJ_C6747_IDLE"]) != p
     files["m.so"].write_bytes(b"rebuilt")
     assert point() != p
 
 
 def test_a_save_run_records_no_pause_and_a_restore_reads_the_point():
     argv = ["q", "-M", "x"]
-    assert mod_check.run_argv(argv, "unix:/t/m.sock,server=on,wait=off") == \
-        argv + ["-monitor", "unix:/t/m.sock,server=on,wait=off"]
+    assert mod_check.run_argv(argv, "unix:/t/m.sock,server=on,wait=off") ==         argv + ["-monitor", "unix:/t/m.sock,server=on,wait=off"]
     saving = mod_check.run_argv(argv, "M", save=True)
     assert saving[-2:] == ["-global", "migration.store-global-state=off"]
-    restoring = mod_check.run_argv(argv, "M", restore="/tmp/p/idle/main.vm")
-    assert restoring[-2:] == ["-incoming", "file:" + host.native("/tmp/p/idle/main.vm")]
+    restoring = mod_check.run_argv(argv, "M", restore="/tmp/p/idle")
+    assert restoring[-2:] == ["-incoming", "file:%s/main.vm" % host.native("/tmp/p/idle")]
 
 
 def test_the_key_ports_are_distinct_and_free():
