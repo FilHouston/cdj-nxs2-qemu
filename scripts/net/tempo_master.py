@@ -702,7 +702,13 @@ def main(argv):
     master = Master(args.number, args.name, args.ip, args.mac, args.bpm, args.pitch, args.speed, args.lock,
                     args.offset, not args.refuse_handoff, args.send, args.dump, args.verbose, t0, say)
     link = Segment(args.segment)
-    commands = control_socket(args.control) if args.control else None
+    try:
+        commands = control_socket(args.control) if args.control else None
+    except OSError as error:
+        # Windows reserves whole port ranges (netsh int ipv4 show excludedportrange
+        # protocol=udp). --tell must name the same port, so no fallback to a free one.
+        sys.exit('tempo_master: cannot take commands on 127.0.0.1:%d (%s); the port is reserved or in use, '
+                 'pick another for --control and --tell' % (args.control, error.strerror or error))
     say('tempo_master: player %d %r at %s (%s), %.2f BPM, pitch %+.2f %%, speed %s, on %s%s'
         % (master.number, master.name, master.ip, master.mac.hex(':'), args.bpm, args.pitch, args.speed,
            args.segment, ', commands on 127.0.0.1:%d' % args.control if args.control else ''))
