@@ -13,7 +13,7 @@ from helpers import path
 
 sys.path.insert(0, path("scripts", "test"))
 import mod_check  # noqa: E402
-from launcher import model  # noqa: E402
+from launcher import host, model  # noqa: E402
 
 Image = pytest.importorskip("PIL.Image")
 ImageDraw = pytest.importorskip("PIL.ImageDraw")
@@ -280,7 +280,7 @@ def test_a_save_run_records_no_pause_and_a_restore_reads_the_point():
     saving = mod_check.run_argv(argv, "M", save=True)
     assert saving[-2:] == ["-global", "migration.store-global-state=off"]
     restoring = mod_check.run_argv(argv, "M", restore="/tmp/p/idle/main.vm")
-    assert restoring[-2:] == ["-incoming", "file:/tmp/p/idle/main.vm"]
+    assert restoring[-2:] == ["-incoming", "file:" + host.native("/tmp/p/idle/main.vm")]
 
 
 def test_the_key_ports_are_distinct_and_free():
