@@ -230,17 +230,23 @@ def test_rendered_audio_puts_every_beat_on_its_sample(tmp_path):
 def _fake_baken(tmp_path):
     """A baken that records how it was called and writes a minimal export."""
     record = tmp_path / "baken-argv.json"
-    fake = tmp_path / "baken"
-    fake.write_text(
-        "#!%s\n"
-        "import json, os, sys\n"
-        "argv = sys.argv[1:]\n"
-        "json.dump(argv, open(%r, 'w'))\n"
-        "device = argv[argv.index('--device') + 1]\n"
-        "os.makedirs(os.path.join(device, 'PIONEER', 'rekordbox'))\n"
-        "open(os.path.join(device, 'PIONEER', 'rekordbox', 'export.pdb'), 'wb').write(b'pdb')\n"
-        % (sys.executable, str(record)))
-    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    body = ("import json, os, sys\n"
+            "argv = sys.argv[1:]\n"
+            "json.dump(argv, open(%r, 'w'))\n"
+            "device = argv[argv.index('--device') + 1]\n"
+            "os.makedirs(os.path.join(device, 'PIONEER', 'rekordbox'))\n"
+            "open(os.path.join(device, 'PIONEER', 'rekordbox', 'export.pdb'), 'wb').write(b'pdb')\n"
+            % str(record))
+    if os.name == "nt":
+        # Windows cannot start a shebang script, so a .cmd runs it instead.
+        script = tmp_path / "baken.py"
+        script.write_text(body)
+        fake = tmp_path / "baken.cmd"
+        fake.write_text('@"%s" "%s" %%*\n' % (sys.executable, script))
+    else:
+        fake = tmp_path / "baken"
+        fake.write_text("#!%s\n%s" % (sys.executable, body))
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
     return fake, record
 
 
