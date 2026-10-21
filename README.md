@@ -934,19 +934,12 @@ python scripts/test/mod_check.py --model cdj900nxs my_main.bin /tmp/check \
     --allow 131,144,662,262
 ```
 
-`mod_check.py` runs a modified MAIN image beside the installed stock one, on
-one-window decks, and compares their screens. All three runs (the image once,
-stock twice) go through the same steps: the idle screen, the browser up to the
-loaded track (the profile's `MODEL_LOAD_STEPS`), the next track loaded while the
-deck is paused, TIME MODE, UTILITY, INFO and TAG LIST. Keys are pressed by name through the
-model's face, so a point whose key the face does not wire is skipped. Every
-picture is taken where the deck stands still; where the two stock runs still
-disagree (a blinking digit, the stick's access lamp) is not judged. The image
-passes when it matches stock everywhere else, apart from the `--allow`
-regions the change is meant to touch. Stock boots once to its idle point and is
-saved there; both stock runs restore that save, and later checks reuse it.
+`mod_check.py` runs a modified MAIN image beside the installed stock one on a
+one-window deck, takes its pictures at the same points in both (idle, the
+browser, a cued track, the menus), and passes when the image matches stock
+outside the `--allow` regions the change is meant to touch.
 `<out>/summary.txt` gives a verdict per picture and `<out>/diff/` marks every
-difference.
+difference; `mod_check.py --help` has the steps and the verdicts.
 
 <details>
 <summary><b>📁 Repository layout</b></summary>

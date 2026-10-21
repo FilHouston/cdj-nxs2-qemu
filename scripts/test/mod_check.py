@@ -587,7 +587,7 @@ def prepare(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("image", help="the MAIN image under test (an unpacked main_unpacked.bin)")
     ap.add_argument("outdir")
     ap.add_argument("--allow", action="append", default=[], type=parse_box, metavar="X0,Y0,X1,Y1",
